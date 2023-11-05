@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en"
+      xmlns:th="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="_csrf" th:content="${_csrf.token}"/>
+  <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+  <title>상품 검색</title>
+  <link href="/css/bootstrap.min.css" rel="stylesheet">
+  <link href="/css/style.css" rel="stylesheet">
+  <script src="/js/bootstrap.min.js"></script>
+  <script src="/js/script.js"></script>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+  <style>
+    body {
+      min-height: 100vh;
+    }
+
+    .input-form {
+      max-width: 1350px;
+
+      margin-top: 80px;
+      margin-bottom: 80px;
+      padding: 32px;
+
+      background: #fff;
+      -webkit-border-radius: 10px;
+      -moz-border-radius: 10px;
+      border-radius: 10px;
+      -webkit-box-shadow: 0 8px 20px 0 rgba(0, 0, 0, 0.15);
+      -moz-box-shadow: 0 8px 20px 0 rgba(0, 0, 0, 0.15);
+      box-shadow: 0 8px 20px 0 rgba(0, 0, 0, 0.15)
+    }
+
+    .wrap-div-main{
+      position: fixed;
+      top:5%;
+      left:35%;
+    }
+
+    .div-coupon {
+      width: 500px;
+      height: 700px;
+      background-color: white;
+      border: 4px solid #FFC107;
+      border-radius: 5px 5px 5px 5px;
+    }
+
+    .textarea {
+      border: 1px solid #CED4DA;
+      border-radius: 5px 5px 5px 5px;
+      width:410px;
+      height:100px;
+      resize:none;
+    }
+
+    .margin-left {
+      margin-left : 10px;
+    }
+
+    .div-coupon-view {
+      border-radius: 5px 5px 5px 5px;
+      background : #FFC107;
+      box-shadow : 5px 5px 5px 5px gray
+    }
+
+    .img-choice {
+      border: 3px solid #FFC107;
+    }
+
+    .img-choice2 {
+      border: 3px solid #FFC107;
+    }
+
+    .div-item {
+      width:300px;
+      height:300px;
+      border : 1px solid #C7C8C9;
+      margin-right: 5px;
+      margin-top: 5px;
+      display : inline-block;
+    }
+
+    .div-item img {
+      width:100%;
+      height:65%;
+    }
+
+    .div-item .title{
+      margin-left : 5px;
+      font-size : 15px;
+    }
+
+    .div-item .price{
+      margin-left : 5px;
+      font-weight : bold;
+      font-size : 20px;
+    }
+
+    .div-item .deil{
+      margin-left : 5px;
+      font-size : 13px;
+      color : #C7C8C9;
+    }
+    
+    .div-item .star img {
+      margin-left : 5px;
+      width:20px;
+      height:20px;
+    }
+
+    .div-item:hover {
+      border: 3px solid #FFC107;
+    }
+
+  </style>
+  <script th:inline="javascript">
+    var header = $("meta[name='_csrf_header']").attr("content");
+    var token = $("meta[name='_csrf']").attr("content");
+    var pages = 0;
+    var name = [[${name}]];
+    var search = [[${search}]];
+    var type = [[${type}]];
+    var namePlus = type == 'category' ? ' 카테고리 결과' : ' 검색 결과';
+
+    $(document).ready(function(){
+      $('#searchTitle').html('\"'+name+'\"' + namePlus);
+
+      $('#sort').change(function() {
+        fn_appr();
+      });
+
+      fn_appr();
+    });
+
+    // 조회
+    function fn_appr(page) {
+      let pageNum = fn_checkBlank(page) ? 0 : page;
+      let user = $('#login-user-id').val();
+      let sort = $('#sort').val();
+
+      if(fn_checkBlank(search)) {
+        search = 'all';
+      }
+
+      $('#page').html('');
+
+      $.ajax({
+          type: "GET"
+        , url : "api/v1/item/"+ type + "/" + search + "/" + pageNum + "/" + sort
+        , dataType: "json"
+        , success : function(data) {
+          let str = '';
+
+          if(data.resultCode == 200) {
+            let total = data.result.totalElements / 20;
+            let start = Math.floor(pageNum / 20) * 20;
+            let end = total < (20 * (Math.floor(pageNum / 20)+1))? total : total - (total - (20 * (Math.floor(pageNum / 20)+1)));
+
+            for(let i=0; i < data.result.content.length; i++) {
+              str += '<div class="div-item"';
+              str += '    data-user = "' + data.result.content[i].user + '"';
+              str += '    data-selItemId = "' + data.result.content[i].selItemId + '"';
+              str += '    data-selItemName = "' + data.result.content[i].selItemName + '"';
+              str += '    data-category = "' + data.result.content[i].category + '"';
+              str += '    data-selMiniImg = "' + data.result.content[i].selMiniImg + '"';
+              str += '    data-selMainImg = "' + data.result.content[i].selMainImg + '"';
+              str += '    data-selExpln = "' + data.result.content[i].selExpln + '"';
+              str += '    data-selItemPrice = "' + data.result.content[i].selItemPrice + '"';
+              str += '    data-selDeilPrice = "' + data.result.content[i].selDeilPrice + '"';
+              str += '    data-selStarPoint = "' + data.result.content[i].selStarPoint + '"';
+              str += '    data-selSaleCount = "' + data.result.content[i].selSaleCount + '"';
+              str += '    data-selHeartCount = "' + data.result.content[i].selHeartCount + '"';
+              str += '    data-selStockCount = "' + data.result.content[i].selStockCount + '"';
+              str += '>';
+              str += '  <img class="img" src="/files/item/'+ data.result.content[i].selMiniImg +'">';
+              str += '  <div class="title">'+ data.result.content[i].selItemName +'</div>';
+              str += '  <div class="price">'+ data.result.content[i].selItemPrice +'원</div>';
+
+              var starPoints = data.result.content[i].selStarPointAvg;
+
+              if(Number.isNaN(starPoints)) {
+                starPoints = 0;
+              }
+
+              str += '  <div class="deil">배송비 '+ data.result.content[i].selDeilPrice +' ㆍ 구매 '+ data.result.content[i].selSaleCount +' ㆍ 별점 '+ starPoints.toFixed(1) +'</div>';
+              str += '  <div class="star">';
+
+
+              if(starPoints == 0) {
+                str += '    <img src="/img/star-white.png">';
+              } else {
+                for(var j=0; j<Math.floor(starPoints); j++) {
+                  str += '    <img src="/img/star.png">';
+                }
+
+                for(var j=0; j<starPoints % 1; j++) {
+                  str += '    <img src="/img/star-half.png">';
+                }
+              }
+
+              str += '  </div>';
+              str += '</div>';
+            }
+
+            str += '<div class="page_wrap"> ';
+            str += '  <div class="page_nation"> ';
+            str += '    <a class="arrow pprev" onclick=\"fn_appr(0);\">First</a> ';
+
+            if(pageNum-1 < 0) {
+              str += '    <a class="arrow prev" onclick=\"alert(\'처음 페이지 입니다.\');">&lt;</a> ';
+            } else {
+              str += '    <a class="arrow prev" onclick=\"fn_appr(' + (pageNum-1) + ');\">&lt;</a> ';
+            }
+
+            for(var i=start; i<end; i++) {
+              if(pageNum == i) {
+                str += '<a class=\"active\" onclick=\"fn_appr(' + i + ');\">' + (i+1) + '</a>';
+              } else {
+                str += '<a onclick=\"fn_appr(' + i + ');\">' + (i+1) + '</a>';
+              }
+            }
+
+            if(pageNum+1 >= total) {
+              str += '    <a class="arrow next" onclick=\"alert(\'마지막 페이지 입니다.\');">&gt;</a> ';
+            } else {
+              str += '    <a class="arrow next" onclick=\"fn_appr(' + (pageNum+1) + ');\">&gt;</a> ';
+            }
+
+            if(total - Math.floor(total) == 0) {
+              total -= 1;
+            }
+
+            str += '    <a class="arrow nnext" onclick=\"fn_appr(' + Math.floor(total) + ');\">Last</a> ';
+            str += '  </div> ';
+            str += '</div> ';
+
+            $('#page').html(str);
+
+            pages = pageNum;
+
+            $('.div-item').click(function() {
+              location.href = '/buy?user=' + $(this).data('user') + '&item=' + $(this).data('selitemid');
+            });
+          } else {
+            if(data.divisionCode == 'G013') {
+              alert(data.resultMsg);
+            } else {
+              alert('조회가 실패하였습니다');
+            }
+          }
+        }
+        , beforeSend:function(){
+            $('.wrap-loading').removeClass('display-none');
+        }
+        , complete:function(){
+            $('.wrap-loading').addClass('display-none');
+        }
+        , error : function(e) {
+          alert('조회가 실패하였습니다');
+        }
+      });
+    }
+
+  </script>
+</head>
+<body>
+  <th:block th:replace="fragment/header :: headerFragment"></th:block>
+  <div class="container">
+    <div class="input-form-backgroud row">
+      <div class="input-form col-md-12 mx-auto">
+        <h4 class="mb-3" id="searchTitle"></h4>
+        <hr class="mb-4">
+        <div class="col-md-2 mb-3">
+          <img src="/img/sort.png" style="width:20px; height:20px; margin-bottom:2px;">
+          <label for="sort">정렬</label>
+          <select class="form-select" id="sort">
+            <option selected value="regDate">신규순</option>
+            <option value="sale">판매순</option>
+            <option value="star">별점순</option>
+            <option value="dprice">낮은가격순</option>
+            <option value="price">높은가격순</option>
+          </select>
+        </div>
+        <div id="page"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="wrap-loading display-none">
+    <div><img src="/img/loading.gif"></div>
+  </div>
+  <th:block th:replace="fragment/footer :: footerFragment"></th:block>
+</body>
+</html>

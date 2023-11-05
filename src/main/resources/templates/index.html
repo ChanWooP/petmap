@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en"
+      xmlns:th="http://www.w3.org/1999/xhtml"
+      xmlns:sec="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="/css/bootstrap.min.css" rel="stylesheet">
+  <link href="/css/style.css" rel="stylesheet">
+  <script src="/js/bootstrap.min.js"></script>
+  <script src="/js/script.js"></script>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+  <title>자몽샵</title>
+  <style>
+    body {
+      min-height: 100vh;
+    }
+
+    .input-form {
+      max-width: 1200px;
+
+      margin-top: 80px;
+      margin-bottom: 80px;
+      padding: 32px;
+
+      background: #fff;
+      -webkit-border-radius: 10px;
+      -moz-border-radius: 10px;
+      border-radius: 10px;
+      -webkit-box-shadow: 0 8px 20px 0 rgba(0, 0, 0, 0.15);
+      -moz-box-shadow: 0 8px 20px 0 rgba(0, 0, 0, 0.15);
+      box-shadow: 0 8px 20px 0 rgba(0, 0, 0, 0.15)
+    }
+
+    .center {
+      display: flex;
+      align-items: center;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    li {
+      list-style-type: none;
+    }
+
+    /* 보여줄 구간의 높이와 넓이 설정 */
+    #slideShow {
+      /*전체 컨테이너*/
+      width: 1100px;
+      height: 200px;
+      position: relative;
+      margin: 10px auto;
+      overflow: hidden; /*리스트 형식으로 이미지를 일렬로 정렬할 것이기 때문에, 500px 밖으로 튀어 나간 이미지들은 hidden으로 숨겨줘야됨*/
+    }
+
+    .slides {
+      /*이미지들이 담겨있는 슬라이드 컨테이너*/
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 2500px; /* 슬라이드할 사진과 마진 총 넓이 */
+      transition: 0.5s ease-out; /*ease-out: 처음에는 느렸다가 점점 빨라짐*/
+    }
+
+    .slides img {
+      width:900px;
+      height:200px;
+    }
+
+    /* 첫 번째 슬라이드 가운데에 정렬하기위해 첫번째 슬라이드만 margin-left조정 */
+    .slides li:first-child {
+      margin-left: 68px;
+    }
+
+    /* 슬라이드들 옆으로 정렬 */
+    .slides li:not(:last-child) {
+      float: left;
+      margin-right: 100px;
+    }
+
+    .controller span {
+      position: absolute;
+      background-color: transparent;
+      color: black;
+      text-align: center;
+      border-radius: 50%;
+      padding: 10px 20px;
+      top: 50%;
+      font-size: 1.3em;
+      cursor: pointer;
+    }
+
+    /* 이전, 다음 화살표에 마우스 커서가 올라가 있을때 */
+    .controller span:hover {
+      background-color: rgba(128, 128, 128, 0.11);
+    }
+
+    .prev {
+      left: 10px;
+    }
+
+    /* 이전 화살표에 마우스 커서가 올라가 있을때 이전 화살표가 살짝 왼쪽으로 이동하는 효과*/
+    .prev:hover {
+      transform: translateX(-10px);
+    }
+
+    .next {
+      right: 10px;
+    }
+
+    /* 다음 화살표에 마우스 커서가 올라가 있을때 이전 화살표가 살짝 오른쪽으로 이동하는 효과*/
+    .next:hover {
+      transform: translateX(10px);
+    }
+
+  </style>
+  <script type="text/javascript">
+    var slides;
+    var slideImg;
+
+    $(document).ready(function(){
+      fn_load();
+    });
+
+    function makeClone(){
+      let cloneSlide_first = slideImg[0].cloneNode(true); //slideImg.firstElementChild.cloneNode(true);
+      let cloneSlide_last = slides.lastElementChild.cloneNode(true);
+      slides.append(cloneSlide_first);
+      slides.insertBefore(cloneSlide_last,slides.firstElementChild);
+    }
+
+    function initfunction(){
+      slides.style.width = (slideWidth + slideMargin) * (slideCount+2) + "px";
+      slides.style.left = -(slideWidth + slideMargin) + "px";
+    }
+
+    function fn_load() {
+      $.ajax({
+          type: "GET"
+        , url : "/api/v1/index"
+        , dataType: "json"
+        , success : function(data) {
+            if(data.resultCode == 200) {
+              var str = '';
+
+              /* 메인 배너 슬라이드 */
+              for(var i=0; i<data.result.notifi.length; i++) {
+                let li = document.createElement('li');
+                let img = document.createElement('img');
+
+                img.src = '/files/notifi/' + data.result.notifi[i].notifiBannerImg;
+
+                li.appendChild(img);
+                document.getElementsByClassName('slides')[0].appendChild(li);
+              }
+
+              slides = document.querySelector(".slides");
+              slideImg = document.querySelectorAll(".slides li");
+
+              currentIdx = 0;
+              slideCount = slideImg.length;
+              prev = document.querySelector(".prev");
+              next = document.querySelector(".next");
+              slideWidth = 900;
+              slideMargin = 100;
+
+              makeClone();
+              initfunction();
+
+              next.addEventListener('click', function () {
+                if (currentIdx <= slideCount-1) {
+                  slides.style.left = -(currentIdx+2) * (slideWidth+slideMargin) + "px";
+                  slides.style.transition = `${0.5}s ease-out`;
+                }if (currentIdx === slideCount-1){
+                  setTimeout(function(){
+                    slides.style.left = -(slideWidth + slideMargin) + "px";
+                    slides.style.transition = `${0}s ease-out`;
+                  },500);
+                  currentIdx = -1;
+                  }
+                  currentIdx+=1;
+                }
+              );
+
+              prev.addEventListener('click', function () {
+                  if (currentIdx >= 0) {
+                    slides.style.left = -(currentIdx) * (slideWidth + slideMargin) + "px";
+                    slides.style.transition = `${0.5}s ease-out`;
+                  }if (currentIdx === 0){
+                    setTimeout(function(){
+                      slides.style.left = -(slideCount) * (slideWidth + slideMargin)+ "px";
+                      slides.style.transition = `${0}s ease-out`;
+                    },500);
+                    currentIdx=slideCount;
+                    }
+                    currentIdx-=1;
+                  }
+              );
+
+              /* 메인 카테고리 */
+              for(var i=0; i<data.result.category.length; i++) {
+                str += '<div class="inline-block" style="margin:5px;">';
+                str += '<div><img class="img-main" style="width:100px; height:100px;" src="/files/category/' + data.result.category[i].categoryImg + '"/></div>';
+                str += '<div>'+ data.result.category[i].categoryName +'</div>';
+                str += '<div class="data" style="margin-top:5px"';
+                str += ' data-id="' + data.result.category[i].categoryId + '"';
+                str += ' data-depth="' + data.result.category[i].categoryDepth + '"';
+                str += '>';
+                str += '</div>';
+                str += '</div>';
+              }
+              $('#top').html(str);
+
+              $('.img-main').click(function() {
+                  $('.img-choice').removeClass('img-choice');
+                  $(this).addClass('img-choice');
+                  fn_apprCategory($(this).parent().siblings('.data').data('id'), 1);
+              });
+            } else {
+              if(data.divisionCode == 'G013') {
+                alert(data.resultMsg);
+              } else {
+                alert('조회가 실패하였습니다');
+              }
+            }
+        }
+        , beforeSend:function(){
+            $('.wrap-loading').removeClass('display-none');
+        }
+        , complete:function(){
+            $('.wrap-loading').addClass('display-none');
+        }
+        , error : function(e) {
+          alert('조회가 실패하였습니다');
+        }
+      });
+    }
+
+    function fn_apprCategory(parent, depth) {
+      $.ajax({
+          type: "GET"
+        , url : "/api/v1/category/" + parent + "/" + depth
+        , dataType: "json"
+        , success : function(data) {
+            let str = '';
+
+            if(data.resultCode == 200) {
+              if(depth == 1) {
+                for(let i=0; i < data.result.length; i++) {
+                  str += '<div class="inline-block" style="margin:5px;">';
+                  str += '<div><img class="img-main" data-id="1" style="width:100px; height:100px;" src="/files/category/' + data.result[i].categoryImg + '"/></div>';
+                  str += '<div>'+ data.result[i].categoryName +'</div>';
+                  str += '<div class="data" style="margin-top:5px"';
+                  str += ' data-id="' + data.result[i].categoryId + '"';
+                  str += ' data-depth="' + data.result[i].categoryDepth + '"';
+                  str += '>';
+                  str += '</div>';
+                  str += '</div>';
+                }
+
+                $('#middle').html(str);
+                $('#bottom').html('');
+              } else {
+                for(let i=0; i < data.result.length; i++) {
+                  str += '<div class="inline-block" style="margin:5px;">';
+                  str += '<div><img class="img-main" style="width:100px; height:100px;" src="/files/category/' + data.result[i].categoryImg + '"/></div>';
+                  str += '<div>'+ data.result[i].categoryName +'</div>';
+                  str += '<div class="data" style="margin-top:5px"';
+                  str += ' data-id="' + data.result[i].categoryId + '"';
+                  str += ' data-depth="' + data.result[i].categoryDepth + '"';
+                  str += ' data-name="' + data.result[i].categoryName + '"';
+                  str += '>';
+                  str += '</div>';
+                  str += '</div>';
+
+                  $('#bottom').html(str);
+                }
+              }
+
+              $('.img-main').off('click');
+
+              $('.img-main').click(function() {
+                if($(this).parent().siblings('.data').data('depth') == '0') {
+                  $('.img-choice').removeClass('img-choice');
+                  $(this).addClass('img-choice');
+                  fn_apprCategory($(this).parent().siblings('.data').data('id'), 1);
+                } else if($(this).parent().siblings('.data').data('depth') == '1') {
+                  $('.img-choice2').removeClass('img-choice2');
+                  $(this).addClass('img-choice2');
+                  fn_apprCategory($(this).parent().siblings('.data').data('id'), 2);
+                } else {
+                  $('.img-choice3').removeClass('img-choice3');
+                  $(this).addClass('img-choice3');
+                  location.href = '/search?type=category&name=' + $(this).parent().siblings('.data').data('name') + '&search=' + $(this).parent().siblings('.data').data('id');
+                }
+              });
+
+            } else {
+              if(data.divisionCode == 'G013') {
+                alert(data.resultMsg);
+                htmlInit(depth);
+              } else {
+                alert('조회가 실패하였습니다');
+                htmlInit(depth);
+              }
+            }
+        }
+        , beforeSend:function(){
+            $('.wrap-loading').removeClass('display-none');
+        }
+        , complete:function(){
+            $('.wrap-loading').addClass('display-none');
+        }
+        , error : function(e) {
+          alert('조회가 실패하였습니다');
+          htmlInit(depth);
+        }
+      });
+    }
+
+    function htmlInit(depth) {
+      if(depth == 0) {
+        $('#top').html('');
+        $('#middle').html('');
+        $('#bottom').html('');
+      } else if(depth == 1) {
+        $('#middle').html('');
+        $('#bottom').html('');
+      } else {
+        $('#bottom').html('');
+      }
+    }
+  </script>
+</head>
+<body>
+  <th:block th:replace="fragment/header :: headerFragment"></th:block>
+  <div class="container">
+    <div class="input-form-backgroud row">
+      <div class="input-form col-md-12 mx-auto">
+
+        <div id="slideShow">
+          <ul class="slides">
+          </ul>
+          <p class="controller">
+            <span class="prev">&lang;</span>
+            <span class="next">&rang;</span>
+          </p>
+        </div>
+
+        <h4 style="font-weight:bold;">카테고리 별 검색</h4>
+        <hr class="mb-4">
+
+        <div style="margin-bottom:10px; padding:5px;">
+          <div class="mb-3" id="top"></div>
+        </div>
+
+        <div style="margin-bottom:10px; padding:5px;">
+          <div class="mb-3" id="middle"></div>
+        </div>
+
+        <div style="margin-bottom:10px; padding:5px;">
+          <div class="mb-3" id="bottom"></div>
+        </div>
+    </div>
+  </div>
+  <th:block th:replace="fragment/footer :: footerFragment"></th:block>
+</body>
+</html>

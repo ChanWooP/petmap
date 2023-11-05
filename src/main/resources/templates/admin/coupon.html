@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en"
+      xmlns:th="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="_csrf" th:content="${_csrf.token}"/>
+  <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+  <title>쿠폰 관리</title>
+  <link href="/css/bootstrap.min.css" rel="stylesheet">
+  <link href="/css/style.css" rel="stylesheet">
+  <script src="/js/bootstrap.min.js"></script>
+  <script src="/js/script.js"></script>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+  <style>
+    body {
+      min-height: 100vh;
+    }
+
+    .input-form {
+      max-width: 800px;
+
+      margin-top: 80px;
+      margin-bottom: 80px;
+      padding: 32px;
+
+      background: #fff;
+      -webkit-border-radius: 10px;
+      -moz-border-radius: 10px;
+      border-radius: 10px;
+      -webkit-box-shadow: 0 8px 20px 0 rgba(0, 0, 0, 0.15);
+      -moz-box-shadow: 0 8px 20px 0 rgba(0, 0, 0, 0.15);
+      box-shadow: 0 8px 20px 0 rgba(0, 0, 0, 0.15)
+    }
+
+    .wrap-div-main{
+      position: fixed;
+      top:20%;
+      left:35%;
+    }
+
+    .div-coupon {
+      width: 500px;
+      height: 500px;
+      background-color: white;
+      border: 4px solid #FFC107;
+      border-radius: 5px 5px 5px 5px;
+    }
+
+    .textarea {
+      border: 1px solid #CED4DA;
+      border-radius: 5px 5px 5px 5px;
+      width:410px;
+      height:100px;
+      resize:none;
+    }
+
+    .margin-left {
+      margin-left : 10px;
+    }
+
+    .div-coupon-view {
+      border-radius: 5px 5px 5px 5px;
+      background : #FFC107;
+      box-shadow : 5px 5px 5px 5px gray
+    }
+
+  </style>
+  <script type="text/javascript">
+    $(document).ready(function(){
+      document.getElementById('frDt').value = new Date().toISOString().substring(0, 10);
+      document.getElementById('toDt').value = new Date().toISOString().substring(0, 10);
+    });
+
+    var header = $("meta[name='_csrf_header']").attr("content");
+    var token = $("meta[name='_csrf']").attr("content");
+    var pages = 0;
+
+    // 쿠폰 추가 수정 삭제
+    function fn_method(method) {
+      let inputMethod = document.getElementById('method');
+
+      $('.wrap-div').removeClass('display-none');
+      inputMethod.value = method;
+    }
+
+    // 쿠폰 저장 초기화
+    function fn_init() {
+      let couponCode = document.getElementById('coupon-code-i');
+      let couponName = document.getElementById('coupon-name-i');
+      let frDt = document.getElementById('frDt-i');
+      let toDt = document.getElementById('toDt-i');
+      let couponType = document.getElementById('coupon-type');
+      let couponAmt = document.getElementById('coupon-amt');
+      let couponExpln = document.getElementById('coupon-expln');
+
+      couponCode.value = '';
+      couponName.value = '';
+      frDt.value = '';
+      toDt.value = '';
+      couponType.value = '';
+      couponAmt.value = '';
+      couponExpln.value = '';
+
+      couponCode.disabled = false;
+    }
+
+    // 쿠폰 저장
+    function fn_save(method) {
+      let couponCode = document.getElementById('coupon-code-i');
+      let couponName = document.getElementById('coupon-name-i');
+      let frDt = document.getElementById('frDt-i');
+      let toDt = document.getElementById('toDt-i');
+      let couponType = document.getElementById('coupon-type');
+      let couponAmt = document.getElementById('coupon-amt');
+      let couponExpln = document.getElementById('coupon-expln');
+      let inputMethod = document.getElementById('method');
+      let coupon = null;
+
+      if(fn_checkBlank(couponCode.value)) {
+        alert('쿠폰코드를 입력해주세요');
+        couponCode.focus();
+        return false;
+      } else if(fn_registerValidationCheck('num', couponCode.value, 8, 8)) {
+        alert('쿠폰코드는 숫자 8자리로 입력해야합니다');
+        couponCode.focus();
+        return false;
+      }
+
+      if(fn_checkBlank(couponName.value)) {
+        alert('쿠폰명을 입력해주세요');
+        couponName.focus();
+        return false;
+      } else if(couponName.value.length > 100) {
+        alert('쿠폰명은 100자리 이내로 입력해주세요');
+        couponName.focus();
+        return false;
+      }
+
+      if(fn_checkBlank(frDt.value)) {
+        alert('시작일자를 입력해주세요');
+        frDt.focus();
+        return false;
+      }
+
+      if(fn_checkBlank(toDt.value)) {
+        alert('종료일자를 입력해주세요');
+        toDt.focus();
+        return false;
+      }
+
+      if(frDt.value > toDt.value) {
+        alert('시작일자는 종료일자보다 느릴 수 없습니다');
+        toDt.focus();
+        return false;
+      }
+
+      if(fn_checkBlank(couponType.value)) {
+        alert('쿠폰유형을 선택해주세요');
+        couponType.focus();
+        return false;
+      }
+
+      if(fn_checkBlank(couponAmt.value)) {
+        alert('쿠폰 요율 및 금액을 입력해주세요');
+        couponAmt.focus();
+        return false;
+      } else if(couponAmt.value < 0) {
+        alert('쿠폰 요율 및 금액은 1 이상으로 입력해야합니다');
+        couponAmt.focus();
+        return false;
+      }
+
+      if(fn_checkBlank(couponExpln.value)) {
+        alert('쿠폰설명을 입력해주세요');
+        couponExpln.focus();
+        return false;
+      } else if(couponExpln.value.length > 100) {
+        alert('쿠폰설명은 100자리 이내로 입력해주세요');
+        couponExpln.focus();
+        return false;
+      }
+
+      coupon = {
+            "couponCode" : couponCode.value
+          , "couponName" : couponName.value
+          , "couponSdate" : frDt.value.replace(/-/gi, "")
+          , "couponEdate" : toDt.value.replace(/-/gi, "")
+          , "couponType" : couponType.value
+          , "couponAmt" : couponAmt.value
+          , "couponExpln" : couponExpln.value
+      };
+
+      $.ajax({
+          type: inputMethod.value == 'POST' ? "POST" : inputMethod.value
+        , url : "/api/v1/admin/coupon"
+        , beforeSend: function(xhr){
+          $('.wrap-loading').removeClass('display-none');
+          xhr.setRequestHeader(header, token);
+        }
+        , contentType : "application/json"
+        , data : JSON.stringify(coupon)
+        , success : function(data) {
+          if(data.resultCode == 201 || data.resultCode == 204) {
+            alert('저장이 완료되었습니다');
+            fn_close();
+            fn_appr(pages);
+          } else {
+            // 데이터 중복
+            if(data.divisionCode == 'G014') {
+             alert(data.reason);
+            } else {
+             alert('저장이 실패했습니다');
+            }
+          }
+        }
+        , complete:function(){
+            $('.wrap-loading').addClass('display-none');
+        }
+        , error : function(e) {
+          alert('저장이 실패했습니다');
+        }
+      });
+    }
+
+    // 쿠폰 저장 닫기
+    function fn_close() {
+      fn_init();
+      $('.wrap-div').addClass('display-none');
+    }
+
+    // 쿠폰 조회
+    function fn_appr(page) {
+      let couponName = document.getElementById('coupon-name').value;
+      let frDt = document.getElementById('frDt');
+      let toDt = document.getElementById('toDt');
+      let pageShow = document.getElementById('page');
+      let str = '';
+      let pageNum = fn_checkBlank(page) ? 0 : page;
+
+      if(fn_checkBlank(couponName)) {
+        couponName = 'all';
+      }
+
+      if(frDt.value > toDt.value) {
+        alert('조회 시작일자는 조회 종료일자보다 느릴 수 없습니다');
+        frDt.focus();
+        return false;
+      }
+
+      pageShow.innerHTML = '';
+      $.ajax({
+          type: "GET"
+        , url : "/api/v1/admin/coupon/" + couponName + "/" + frDt.value.replace(/-/gi, "") + "/" + toDt.value.replace(/-/gi, "") + "/" + pageNum
+        , dataType: "json"
+        , success : function(data) {
+            if(data.resultCode == 200) {
+              let total = data.result.totalElements / 10;
+              let start = Math.floor(pageNum / 10) * 10;
+              let end = total < (10 * (Math.floor(pageNum / 10)+1))? total : total - (total - (10 * (Math.floor(pageNum / 10)+1)));
+
+              for(let i=0; i < data.result.content.length; i++) {
+                str += '        <div class="mb-3 div-coupon-view"> ';
+                str += '          <div style="background:white; margin-left:100px"> ';
+                str += '            <div class="margin-left inline-block" style="padding: 10px 10px 10px 10px;"> ';
+                str += '              <h5>쿠폰명 : '+ data.result.content[i].couponName + '</h5> ';
+                str += '              <h6>날짜 : '+ data.result.content[i].couponSdate + ' ~ '+ data.result.content[i].couponEdate + '</h6> ';
+
+                if(data.result.content[i].couponType == "PERCENT") {
+                  str += '              <h6>쿠폰유형 : 할인권</h6> ';
+                  str += '              <h6>할인율 : '+ data.result.content[i].couponAmt + '%</h6> ';
+                } else {
+                  str += '              <h6>쿠폰유형 : 금액권</h6> ';
+                  str += '              <h6>할인금액 : '+ data.result.content[i].couponAmt + '원</h6> ';
+                }
+                str += '              <h6>설명 : '+ data.result.content[i].couponExpln + '</h6> ';
+                str += '            </div> ';
+                str += '            <div class="margin-left inline-block" style="padding: 10px 10px 10px 10px; float: right;"> ';
+                str += '              <div class="mb-3 inline-block"> ';
+                str += '                <button type="button" class="btn btn-warning btn-select btn-coupon" data-btn="PUT">수정</button> ';
+                str += '              </div> ';
+                str += '              <div class="mb-3 inline-block margin-left"> ';
+                str += '                <button type="button" class="btn btn-warning btn-select btn-coupon" data-btn="DELETE">삭제</button> ';
+                str += '              </div> ';
+                str += '              <div class="dataset-coupon" ';
+                str += '                   data-code = ' + data.result.content[i].couponCode;
+                str += '                   data-name = ' + data.result.content[i].couponName;
+                str += '                   data-sdate = ' + data.result.content[i].couponSdate;
+                str += '                   data-edate = ' + data.result.content[i].couponEdate;
+                str += '                   data-type = ' + data.result.content[i].couponType;
+                str += '                   data-amt = ' + data.result.content[i].couponAmt;
+                str += '                   data-expln = ' + data.result.content[i].couponExpln;
+                str += '              ></div> ';
+                str += '            </div> ';
+                str += '          </div> ';
+                str += '        </div> ';
+              }
+
+              str += '<div class="page_wrap"> ';
+              str += '  <div class="page_nation"> ';
+              str += '    <a class="arrow pprev" onclick=\"fn_appr(0);\">First</a> ';
+
+              if(pageNum-1 < 0) {
+                str += '    <a class="arrow prev" onclick=\"alert(\'처음 페이지 입니다.\');">&lt;</a> ';
+              } else {
+                str += '    <a class="arrow prev" onclick=\"fn_appr(' + (pageNum-1) + ');\">&lt;</a> ';
+              }
+
+              for(var i=start; i<end; i++) {
+                if(pageNum == i) {
+                  str += '<a class=\"active\" onclick=\"fn_appr(' + i + ');\">' + (i+1) + '</a>';
+                } else {
+                  str += '<a onclick=\"fn_appr(' + i + ');\">' + (i+1) + '</a>';
+                }
+              }
+
+              if(pageNum+1 > total) {
+                str += '    <a class="arrow next" onclick=\"alert(\'마지막 페이지 입니다.\');">&gt;</a> ';
+              } else {
+                str += '    <a class="arrow next" onclick=\"fn_appr(' + (pageNum+1) + ');\">&gt;</a> ';
+              }
+
+              str += '    <a class="arrow nnext" onclick=\"fn_appr(' + Math.floor(total) + ');\">Last</a> ';
+              str += '  </div> ';
+              str += '</div> ';
+
+              pageShow.innerHTML = str;
+
+              // 쿠폰 수정 삭제
+              $('.btn-coupon').click(function() {
+                let sdate = $(this).parent().siblings('.dataset-coupon').data('sdate').toString();
+                let edate = $(this).parent().siblings('.dataset-coupon').data('edate').toString();
+                let coupon = null;
+
+                if($(this).data('btn') == 'PUT') {
+                  $('#coupon-code-i').val($(this).parent().siblings('.dataset-coupon').data('code'));
+                  $('#coupon-name-i').val($(this).parent().siblings('.dataset-coupon').data('name'));
+                  $('#frDt-i').val(sdate.substr(0,4) + '-' + sdate.substr(4, 2) + '-' + sdate.substr(6,2));
+                  $('#toDt-i').val(edate.substr(0,4) + '-' + edate.substr(4, 2) + '-' + edate.substr(6,2));
+                  $('#coupon-type').val($(this).parent().siblings('.dataset-coupon').data('type'));
+                  $('#coupon-amt').val($(this).parent().siblings('.dataset-coupon').data('amt'));
+                  $('#coupon-expln').val($(this).parent().siblings('.dataset-coupon').data('expln'));
+                  $('#coupon-code-i').attr('disabled', true);
+                  fn_method($(this).data('btn'));
+                } else {
+                  if(!confirm('삭제를 하시겠습니까?')) {
+                    return false;
+                  }
+
+                  coupon = {
+                        "couponCode" : $(this).parent().siblings('.dataset-coupon').data('code')
+                      , "couponName" : $(this).parent().siblings('.dataset-coupon').data('name')
+                      , "couponSdate" : $(this).parent().siblings('.dataset-coupon').data('sdate')
+                      , "couponEdate" : $(this).parent().siblings('.dataset-coupon').data('edate')
+                      , "couponType" : $(this).parent().siblings('.dataset-coupon').data('type')
+                      , "couponAmt" : $(this).parent().siblings('.dataset-coupon').data('amt')
+                      , "couponExpln" : $(this).parent().siblings('.dataset-coupon').data('expln')
+                  };
+
+                  $.ajax({
+                      type: "DELETE"
+                    , url : "/api/v1/admin/coupon"
+                    , beforeSend: function(xhr){
+                      $('.wrap-loading').removeClass('display-none');
+                      xhr.setRequestHeader(header, token);
+                    }
+                    , contentType : "application/json"
+                    , data : JSON.stringify(coupon)
+                    , success : function(data) {
+                      if(data.resultCode == 200) {
+                        alert('삭제가 완료되었습니다');
+                        fn_close();
+                        fn_appr(pages);
+                      } else {
+                        alert('삭제가 실패했습니다');
+                      }
+                    }
+                    , complete:function(){
+                        $('.wrap-loading').addClass('display-none');
+                    }
+                    , error : function(e) {
+                      alert('삭제가 실패했습니다');
+                    }
+                  });
+                }
+              });
+
+              pages = pageNum;
+            } else {
+              if(data.divisionCode == 'G013') {
+                alert(data.resultMsg);
+              } else {
+                alert('조회가 실패하였습니다');
+              }
+            }
+        }
+        , beforeSend:function(){
+            $('.wrap-loading').removeClass('display-none');
+        }
+        , complete:function(){
+            $('.wrap-loading').addClass('display-none');
+        }
+        , error : function(e) {
+          alert('조회가 실패하였습니다');
+        }
+      });
+    }
+
+  </script>
+</head>
+<body>
+  <th:block th:replace="fragment/header :: headerFragment"></th:block>
+  <div class="container">
+    <div class="input-form-backgroud row">
+      <div class="input-form col-md-12 mx-auto">
+        <h4 class="mb-3">쿠폰 관리</h4>
+          <div class="row">
+            <div class="col-md-4 mb-3">
+              <label for="coupon-name">쿠폰명</label>
+              <input type="text" class="form-control" id="coupon-name">
+            </div>
+            <div class="col-md-4 mb-3">
+              <label for="frDt">시작일자</label>
+              <input type="date" class="form-control" id="frDt">
+            </div>
+            <div class="col-md-4 mb-3">
+              <label for="toDt">종료일자</label>
+              <input type="date" class="form-control" id="toDt">
+            </div>
+          </div>
+
+        <div>
+          <div class="mb-3 inline-block">
+            <button type="button" class="btn btn-warning btn-select" onclick="fn_appr();">쿠폰 조회</button>
+          </div>
+          <div class="mb-3 inline-block margin-left">
+            <button type="button" class="btn btn-warning btn-select" onclick="fn_method('POST');">쿠폰 추가</button>
+          </div>
+        </div>
+
+
+        <hr class="mb-4">
+
+        <div id="page"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="wrap-div display-none">
+    <div class="wrap-div-main">
+      <div class="div-coupon">
+
+        <h4 class="mb-3 margin-left margin-top">쿠폰 추가 및 수정</h4>
+
+        <input type="hidden" id="method">
+
+        <div class="row">
+          <div class="col-md-5 mb-3 margin-left">
+            <label for="coupon-code-i">쿠폰코드</label>
+            <input type="text" class="form-control" id="coupon-code-i" oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');">
+          </div>
+          <div class="col-md-5 mb-3">
+            <label for="coupon-name-i">쿠폰명</label>
+            <input type="text" class="form-control" id="coupon-name-i">
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-md-5 mb-3 margin-left">
+            <label for="frDt-i">시작일자</label>
+            <input type="date" class="form-control" id="frDt-i">
+          </div>
+          <div class="col-md-5 mb-3">
+            <label for="toDt-i">종료일자</label>
+            <input type="date" class="form-control" id="toDt-i">
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-md-5 mb-3 margin-left">
+            <label for="coupon-type">쿠폰 유형</label>
+            <select class="form-select" id="coupon-type">
+              <option selected value="PERCENT">할인권</option>
+              <option value="MONEY">금액권</option>
+            </select>
+          </div>
+          <div class="col-md-5 mb-3">
+            <label for="coupon-amt">요율 및 금액</label>
+            <input type="number" class="form-control" id="coupon-amt">
+          </div>
+        </div>
+
+        <div class="col-md-5 mb-3 margin-left">
+          <label for="coupon-expln">설명</label>
+          <textarea id="coupon-expln" class="textarea"></textarea>
+        </div>
+
+        <div class="col-md-5 mb-3 margin-left">
+          <button type="button" class="btn btn-warning" onclick="fn_close();">닫기</button>
+          <button type="button" class="btn btn-warning" onclick="fn_save();">저장</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="wrap-loading display-none">
+    <div><img src="/img/loading.gif"></div>
+  </div>
+  <th:block th:replace="fragment/footer :: footerFragment"></th:block>
+</body>
+</html>

@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en"
+      xmlns:th="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="_csrf" th:content="${_csrf.token}"/>
+  <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+  <title>고객문의</title>
+  <link href="/css/bootstrap.min.css" rel="stylesheet">
+  <link href="/css/style.css" rel="stylesheet">
+  <script src="/js/bootstrap.min.js"></script>
+  <script src="/js/script.js"></script>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+  <style>
+    body {
+      min-height: 100vh;
+    }
+
+    .input-form {
+      max-width: 800px;
+
+      margin-top: 80px;
+      margin-bottom: 80px;
+      padding: 32px;
+
+      background: #fff;
+      -webkit-border-radius: 10px;
+      -moz-border-radius: 10px;
+      border-radius: 10px;
+      -webkit-box-shadow: 0 8px 20px 0 rgba(0, 0, 0, 0.15);
+      -moz-box-shadow: 0 8px 20px 0 rgba(0, 0, 0, 0.15);
+      box-shadow: 0 8px 20px 0 rgba(0, 0, 0, 0.15)
+    }
+
+    .wrap-div-main{
+      position: fixed;
+      top:35%;
+      left:37%;
+    }
+
+    .div-main {
+      width: 450px;
+      height: 250px;
+      background-color: white;
+      border: 4px solid #FFC107;
+      border-radius: 5px 5px 5px 5px;
+    }
+
+    .textarea {
+      border: 1px solid #CED4DA;
+      border-radius: 5px 5px 5px 5px;
+      width:410px;
+      height:100px;
+      resize:none;
+    }
+
+    .margin-left {
+      margin-left : 10px;
+    }
+
+  </style>
+  <script type="text/javascript">
+    var header = $("meta[name='_csrf_header']").attr("content");
+    var token = $("meta[name='_csrf']").attr("content");
+    var pages = 0;
+
+    $(document).ready(function(){
+      fn_appr();
+      // 문의 작성
+      $('#btn-answer').click(function() {
+          popInit();
+      });
+
+      // 팝업 닫기
+      $('#btn-close').click(function() {
+          $('.wrap-div').addClass('display-none');
+      });
+
+      // 저장
+      $('#btn-save').click(function() {
+          fn_save();
+      });
+    });
+
+    function popInit() {
+        $('.wrap-div').removeClass('display-none');
+        $('#answer').val('');
+        $('#qna-id').val('');
+        $('#qu').val('');
+        $('.divQu').css('display','none');
+        $('.div-main').css('height', '250px');
+        $('#btn-save').attr('disabled', false);
+        $('#answer').attr('disabled', false);
+    }
+
+    function fn_save() {
+      let answer = document.getElementById('answer');
+      let qnaId = document.getElementById('qna-id');
+      let qna = null;
+
+      let user = {
+        "userId" : $('#login-user-id').val()
+      };
+
+      if(fn_checkBlank(answer.value)) {
+        alert('질문 내용을 입력해주세요');
+        answer.focus();
+        return false;
+      }
+
+      qna = {
+        "userDto" : user
+        , "qnaId" : fn_checkBlank(qnaId.value) ? 0 : Number(qnaId.value)
+        , "qnaQuestion" : answer.value
+        , "qnaAnswerYn" : 'N'
+      };
+
+      $.ajax({
+          type: fn_checkBlank(qnaId.value) ? "POST" : "PUT"
+        , url : "/api/v1/userqna"
+        , beforeSend: function(xhr){
+          $('.wrap-loading').removeClass('display-none');
+          xhr.setRequestHeader(header, token);
+        }
+        , contentType : "application/json"
+        , data : JSON.stringify(qna)
+        , success : function(data) {
+          if(data.resultCode == 201 || data.resultCode == 204) {
+            alert('저장이 완료되었습니다');
+            $('.wrap-div').addClass('display-none');
+            fn_appr();
+          } else {
+            alert('저장이 실패하였습니다');
+          }
+        }
+        , complete:function(){
+            $('.wrap-loading').addClass('display-none');
+        }
+        , error : function(e) {
+          alert('저장이 실패하였습니다');
+        }
+      });
+    }
+
+    function fn_appr(page) {
+      let userId = $("#login-user-id").val();
+      let pageShow = document.getElementById('page');
+      let pageNum = fn_checkBlank(page) ? 0 : page;
+
+      pageShow.innerHTML = '';
+      $.ajax({
+          type: "GET"
+        , url : "/api/v1/userqna/" + userId + '/' + pageNum
+        , dataType: "json"
+        , success : function(data) {
+           if(data.resultCode == 200) {
+              let str = '';
+              let num = '';
+              let img = '';
+
+              let total = data.result.totalElements / 10;
+              let start = Math.floor(pageNum / 10) * 10;
+              let end = total < (10 * (Math.floor(pageNum / 10)+1))? total : total - (total - (10 * (Math.floor(pageNum / 10)+1)));
+
+              str += '<table class="myTable">';
+              str += '  <thead>';
+              str += '    <tr>';
+              str += '      <th style="width:50px">순번</th>';
+              str += '      <th style="width:50px">답변여부</th>';
+              str += '      <th style="width:300px">내용</th>';
+              str += '    </tr>';
+              str += '  </thead>';
+              str += '  <tbody>';
+
+              for(let i=0; i < data.result.content.length; i++) {
+                str += '<tr>';
+
+                if(data.result.content[i].qnaAnswerYn == 'Y') {
+                  img = '<div style="text-align:center;"><img src="/img/complate.png" style="width:27px; height:17px;"></div>';
+                } else {
+                  img = '<div style="text-align:center;"><img src="/img/wait.png" style="width:27px; height:17px;"></div>';
+                }
+
+                str += '  <td class="qnaId" style="width:100px;" data-value="' + data.result.content[i].qnaId +'">'+ data.result.content[i].qnaId +'</td>';
+                str += '  <td class="qnaAnswerYn" style="width:100px;" data-value="' + data.result.content[i].qnaAnswerYn +'">'+ img +'</td>';
+                str += '  <td class="qnaAnswer" style="width:300px;" data-value="' + data.result.content[i].qnaQuestion +'">'+ data.result.content[i].qnaQuestion;
+                str += '    <input type="hidden" class="qnaQuestion" value="' + data.result.content[i].qnaAnswer + '">';
+                str += '  </td>';
+                str += '</tr>';
+              }
+
+              str += '  </tbody>';
+              str += '</table>';
+
+              str += '<div class="page_wrap"> ';
+              str += '  <div class="page_nation"> ';
+              str += '    <a class="arrow pprev" onclick=\"fn_appr(0);\">First</a> ';
+
+              if(pageNum-1 < 0) {
+                str += '    <a class="arrow prev" onclick=\"alert(\'처음 페이지 입니다.\');">&lt;</a> ';
+              } else {
+                str += '    <a class="arrow prev" onclick=\"fn_appr(' + (pageNum-1) + ');\">&lt;</a> ';
+              }
+
+              for(var i=start; i<end; i++) {
+                if(pageNum == i) {
+                  str += '<a class=\"active\" onclick=\"fn_appr(' + i + ');\">' + (i+1) + '</a>';
+                } else {
+                  str += '<a onclick=\"fn_appr(' + i + ');\">' + (i+1) + '</a>';
+                }
+              }
+
+              if(pageNum+1 > total) {
+                str += '    <a class="arrow next" onclick=\"alert(\'마지막 페이지 입니다.\');">&gt;</a> ';
+              } else {
+                str += '    <a class="arrow next" onclick=\"fn_appr(' + (pageNum+1) + ');\">&gt;</a> ';
+              }
+
+              str += '    <a class="arrow nnext" onclick=\"fn_appr(' + Math.floor(total) + ');\">Last</a> ';
+              str += '  </div> ';
+              str += '</div> ';
+
+              pageShow.innerHTML = str;
+
+              // 행 선택
+              $('.myTable').children('tbody').children('tr').click(function() {
+                  popInit();
+
+                  if($(this).children('.qnaAnswerYn').data('value') == 'Y') {
+                      $('#btn-save').attr('disabled', true);
+                      $('#answer').attr('disabled', true);
+                      $('#qu').val($(this).children('td').children('.qnaQuestion').val());
+                      $('.divQu').css('display','block');
+                      $('.div-main').css('height', '400px');
+                  }
+
+                  $('#answer').val($(this).children('.qnaAnswer').data('value'));
+                  $('#qna-id').val($(this).children('.qnaId').data('value'));
+              });
+
+           } else {
+              if(data.divisionCode == 'G013') {
+                alert(data.resultMsg);
+              } else {
+                alert('조회가 실패하였습니다');
+              }
+           }
+
+        }
+        , beforeSend:function(){
+            $('.wrap-loading').removeClass('display-none');
+        }
+        , complete:function(){
+            $('.wrap-loading').addClass('display-none');
+        }
+        , error : function(e) {
+          alert('조회가 실패하였습니다');
+        }
+      });
+    }
+  </script>
+</head>
+<body>
+  <th:block th:replace="fragment/header :: headerFragment"></th:block>
+  <div class="container">
+    <div class="input-form-backgroud row">
+      <div class="input-form col-md-12 mx-auto">
+        <h4 class="mb-3">고객문의</h4>
+        <div class="mb-3">
+          <button type="button" class="btn btn-warning btn-select" id="btn-answer">문의 작성</button>
+        </div>
+        <hr class="mb-4">
+        <div id="page" style="margin-top:10px; width:100%;"></div>
+      </div>
+    </div>
+  </div>
+  <div class="wrap-div display-none">
+    <div class="wrap-div-main">
+      <div class="div-main">
+        <h4 class="mb-3 margin-left margin-top">문의 작성</h4>
+
+        <div class="col-md-5 mb-3 margin-left">
+          <label for="answer">내용</label>
+          <textarea id="answer" class="textarea"></textarea>
+        </div>
+        <div class="col-md-5 mb-3 margin-left divQu display-none">
+          <label for="qu"><img src="/img/reply.png" style="width:20px; height:20px;"> 답변</label>
+          <textarea id="qu" class="textarea" disabled></textarea>
+        </div>
+
+        <input type="hidden" id="qna-id">
+
+        <div class="mb-3 margin-left">
+          <button type="button" class="btn btn-warning" id="btn-close">닫기</button>
+          <button type="button" class="btn btn-warning" id="btn-save">저장</button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+  <div class="wrap-loading display-none">
+    <div><img src="/img/loading.gif"></div>
+  </div>
+  <th:block th:replace="fragment/footer :: footerFragment"></th:block>
+</body>
+</html>

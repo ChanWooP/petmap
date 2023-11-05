@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en"
+      xmlns:th="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="_csrf" th:content="${_csrf.token}"/>
+  <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+  <title>계정 관리</title>
+  <link href="/css/bootstrap.min.css" rel="stylesheet">
+  <link href="/css/style.css" rel="stylesheet">
+  <script src="/js/bootstrap.min.js"></script>
+  <script src="/js/script.js"></script>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+  <script src="//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"></script>
+  <style>
+    body {
+      min-height: 100vh;
+    }
+
+    .input-form {
+      max-width: 1500px;
+
+      margin-top: 80px;
+      margin-bottom: 80px;
+      padding: 32px;
+
+      background: #fff;
+      -webkit-border-radius: 10px;
+      -moz-border-radius: 10px;
+      border-radius: 10px;
+      -webkit-box-shadow: 0 8px 20px 0 rgba(0, 0, 0, 0.15);
+      -moz-box-shadow: 0 8px 20px 0 rgba(0, 0, 0, 0.15);
+      box-shadow: 0 8px 20px 0 rgba(0, 0, 0, 0.15)
+    }
+
+    .wrap-div-main{
+      position: fixed;
+      top:20%;
+      left:35%;
+    }
+
+    .textarea {
+      border: 1px solid #CED4DA;
+      border-radius: 5px 5px 5px 5px;
+      width:410px;
+      height:100px;
+      resize:none;
+    }
+
+    .margin-left {
+      margin-left : 10px;
+    }
+
+    .wrap-div-main{
+      position: fixed;
+      top:5%;
+      left:35%;
+    }
+
+    .div-main {
+      width: 600px;
+      height: 700px;
+      background-color: white;
+      border: 4px solid #FFC107;
+      border-radius: 5px 5px 5px 5px;
+    }
+
+  </style>
+  <script type="text/javascript">
+    var header = $("meta[name='_csrf_header']").attr("content");
+    var token = $("meta[name='_csrf']").attr("content");
+    var pages = 0;
+
+    $(document).ready(function(){
+      // 팝업 닫기
+      $('#btn-close').click(function() {
+          $('.wrap-div').addClass('display-none');
+      });
+
+      // 비밀번호 초기화
+      $('#btn-pwinit').click(function() {
+        $('#userPassWord').val($('#user-id').val());
+        $('#userLoginFailCnt').val(0);
+        fn_save();
+      });
+
+      // 저장
+      $('#btn-save').click(function() {
+        fn_save();
+      });
+
+      // 권한 변경
+      $('#roleType').change(function() {
+        if($(this).val() == 'SELLER') {
+          $('#bizNo').attr('disabled', false);
+          $('#bizName').attr('disabled', false);
+        } else {
+          $('#bizNo').attr('disabled', true);
+          $('#bizName').attr('disabled', true);
+        }
+      });
+
+      // 주소 검색
+      $('#btn-address-search').click(function() {
+        new daum.Postcode({
+            oncomplete: function(data) {
+                // 팝업에서 검색결과 항목을 클릭했을때 실행할 코드를 작성하는 부분.
+
+                // 각 주소의 노출 규칙에 따라 주소를 조합한다.
+                // 내려오는 변수가 값이 없는 경우엔 공백('')값을 가지므로, 이를 참고하여 분기 한다.
+                var addr = ''; // 주소 변수
+                var extraAddr = ''; // 참고항목 변수
+
+                //사용자가 선택한 주소 타입에 따라 해당 주소 값을 가져온다.
+                if (data.userSelectedType === 'R') { // 사용자가 도로명 주소를 선택했을 경우
+                    addr = data.roadAddress;
+                } else { // 사용자가 지번 주소를 선택했을 경우(J)
+                    addr = data.jibunAddress;
+                }
+
+                // 사용자가 선택한 주소가 도로명 타입일때 참고항목을 조합한다.
+                if(data.userSelectedType === 'R'){
+                    // 법정동명이 있을 경우 추가한다. (법정리는 제외)
+                    // 법정동의 경우 마지막 문자가 "동/로/가"로 끝난다.
+                    if(data.bname !== '' && /[동|로|가]$/g.test(data.bname)){
+                        extraAddr += data.bname;
+                    }
+                    // 건물명이 있고, 공동주택일 경우 추가한다.
+                    if(data.buildingName !== '' && data.apartment === 'Y'){
+                        extraAddr += (extraAddr !== '' ? ', ' + data.buildingName : data.buildingName);
+                    }
+                    // 표시할 참고항목이 있을 경우, 괄호까지 추가한 최종 문자열을 만든다.
+                    if(extraAddr !== ''){
+                        extraAddr = ' (' + extraAddr + ')';
+                    }
+                    // 조합된 참고항목을 해당 필드에 넣는다.
+                    document.getElementById("address2").value = extraAddr;
+
+                } else {
+                    document.getElementById("address2").value = '';
+                }
+
+                // 우편번호와 주소 정보를 해당 필드에 넣는다.
+                document.getElementById('zipCode').value = data.zonecode;
+                document.getElementById("address1").value = addr;
+                // 커서를 상세주소 필드로 이동한다.
+                document.getElementById("address2").focus();
+            }
+        }).open();
+      });
+
+      // 조회
+      $('#btn-appr').click(function() {
+        fn_appr();
+      });
+    });
+
+    function fn_appr(page) {
+        let userId = document.getElementById('userId').value;
+        let pageShow = document.getElementById('page');
+        let str = '';
+        let pageNum = fn_checkBlank(page) ? 0 : page;
+
+        if(fn_checkBlank(userId)) {
+          userId = 'all';
+        }
+
+        pageShow.innerHTML = '';
+
+        $.ajax({
+            type: "GET"
+          , url : "/api/v1/admin/user/" + userId + "/" + pageNum
+          , dataType: "json"
+          , success : function(data) {
+              if(data.resultCode == 200) {
+                let total = data.result.totalElements / 10;
+                let start = Math.floor(pageNum / 10) * 10;
+                let end = total < (10 * (Math.floor(pageNum / 10)+1))? total : total - (total - (10 * (Math.floor(pageNum / 10)+1)));
+
+                str += '<table class="myTable">';
+                str += '  <thead>';
+                str += '    <tr>';
+                str += '      <th style="width:80px">아이디</th>';
+                str += '      <th style="width:80px">이름</th>';
+                str += '      <th style="width:80px">생년월일</th>';
+                str += '      <th style="width:80px">성별</th>';
+                str += '      <th style="width:100px">이메일</th>';
+                str += '      <th style="width:100px">전화번호</th>';
+                str += '      <th style="width:100px">주소</th>';
+                str += '      <th style="width:80px">권한</th>';
+                str += '      <th style="width:80px">가입경로</th>';
+                str += '      <th style="width:100px">사업자번호</th>';
+                str += '      <th style="width:80px">상호명</th>';
+                str += '    </tr>';
+                str += '  </thead>';
+                str += '  <tbody>';
+
+                for(let i=0; i < data.result.content.length; i++) {
+                  let fullAddress = data.result.content[i].userAddress1 + data.result.content[i].userAddress2;
+
+                  str += '<tr>';
+                  str += '  <td class="id" style="width:80px;" data-value="' + data.result.content[i].userId +'">'+ data.result.content[i].userId +'</td>';
+                  str += '  <td class="name" style="width:80px" data-value="' + data.result.content[i].userName +'">'+ data.result.content[i].userName +'</td>';
+                  str += '  <td class="birth" style="width:80px" data-value="' + data.result.content[i].userBirth +'">'+ data.result.content[i].userBirth +'</td>';
+                  str += '  <td class="sex" style="width:80px" data-value="' + data.result.content[i].userSex +'">'+ data.result.content[i].userSex +'</td>';
+                  str += '  <td class="email" style="width:100px" data-value="' + data.result.content[i].userEmail +'">'+ data.result.content[i].userEmail +'</td>';
+                  str += '  <td class="tel" style="width:100px" data-value="' + data.result.content[i].userPhone +'">'+ data.result.content[i].userPhone +'</td>';
+                  str += '  <td class="address" style="width:100px" data-zipcode="'+ data.result.content[i].userZipcode +'" data-address1="'+ data.result.content[i].userAddress1 +'" data-address2="'+ data.result.content[i].userAddress2 +'">'+ fullAddress +'</td>';
+                  str += '  <td class="role" style="width:80px" data-value="' + data.result.content[i].userRole +'">'+ data.result.content[i].userRole +'</td>';
+                  str += '  <td class="auth" style="width:80px" data-value="' + data.result.content[i].oauthType +'">'+ data.result.content[i].oauthType +'</td>';
+                  str += '  <td class="bizNo" style="width:100px" data-value="' + data.result.content[i].userBizNo +'">'+ data.result.content[i].userBizNo +'</td>';
+                  str += '  <td class="bizName" style="width:80px" data-value="' + data.result.content[i].userBizName +'">'+ data.result.content[i].userBizName;
+                  str += '   <input type="hidden" class="userPassWord" value="'+ data.result.content[i].userPassWord +'">';
+                  str += '   <input type="hidden" class="userLoginFailCnt" value="'+ data.result.content[i].userLoginFailCnt +'">';
+                  str += '   <input type="hidden" class="userPoint" value="'+ data.result.content[i].userPoint +'">';
+                  str += '  </td>';
+                  str += '</tr>';
+                }
+
+                str += '  </tbody>';
+                str += '</table>';
+
+                str += '<div class="page_wrap"> ';
+                str += '  <div class="page_nation"> ';
+                str += '    <a class="arrow pprev" onclick=\"fn_appr(0);\">First</a> ';
+
+                if(pageNum-1 < 0) {
+                  str += '    <a class="arrow prev" onclick=\"alert(\'처음 페이지 입니다.\');">&lt;</a> ';
+                } else {
+                  str += '    <a class="arrow prev" onclick=\"fn_appr(' + (pageNum-1) + ');\">&lt;</a> ';
+                }
+
+                for(var i=start; i<end; i++) {
+                  if(pageNum == i) {
+                    str += '<a class=\"active\" onclick=\"fn_appr(' + i + ');\">' + (i+1) + '</a>';
+                  } else {
+                    str += '<a onclick=\"fn_appr(' + i + ');\">' + (i+1) + '</a>';
+                  }
+                }
+
+                if(pageNum+1 > total) {
+                  str += '    <a class="arrow next" onclick=\"alert(\'마지막 페이지 입니다.\');">&gt;</a> ';
+                } else {
+                  str += '    <a class="arrow next" onclick=\"fn_appr(' + (pageNum+1) + ');\">&gt;</a> ';
+                }
+
+                str += '    <a class="arrow nnext" onclick=\"fn_appr(' + Math.floor(total) + ');\">Last</a> ';
+                str += '  </div> ';
+                str += '</div> ';
+
+                pageShow.innerHTML = str;
+
+                pages = pageNum;
+              }
+
+              // 행 선택
+              $('.myTable').children('tbody').children('tr').click(function() {
+                  if($(this).children('.role').data('value') != 'SELLER') {
+                    $('#bizNo').attr('disabled', true);
+                    $('#bizName').attr('disabled', true);
+                    $('#bizNo').val('');
+                    $('#bizName').val('');
+                  } else {
+                    $('#bizNo').attr('disabled', false);
+                    $('#bizName').attr('disabled', false);
+                    $('#bizNo').val($(this).children('.bizNo').data('value'));
+                    $('#bizName').val($(this).children('.bizName').data('value'));
+                  }
+
+                  $('#user-id').val($(this).children('.id').data('value'));
+                  $('#user-name').val($(this).children('.name').data('value'));
+                  $('#user-birth').val($(this).children('.birth').data('value'));
+                  $('#user-sex').val($(this).children('.sex').data('value'));
+                  $('#user-email').val($(this).children('.email').data('value'));
+                  $('#user-tel').val($(this).children('.tel').data('value'));
+                  $('#zipCode').val($(this).children('.address').data('zipcode'));
+                  $('#address1').val($(this).children('.address').data('address1'));
+                  $('#address2').val($(this).children('.address').data('address2'));
+                  $('#roleType').val($(this).children('.role').data('value'));
+                  $('#user-oauth').val($(this).children('.auth').data('value'));
+                  $('#userPassWord').val($(this).children('td').children('.userPassWord').val());
+                  $('#userLoginFailCnt').val($(this).children('td').children('.userLoginFailCnt').val());
+                  $('#userPoint').val($(this).children('td').children('.userPoint').val());
+
+                  $('.wrap-div').removeClass('display-none');
+              });
+          }
+          , beforeSend:function(){
+              $('.wrap-loading').removeClass('display-none');
+          }
+          , complete:function(){
+              $('.wrap-loading').addClass('display-none');
+          }
+          , error : function(e) {
+            alert('조회가 실패하였습니다');
+          }
+        });
+      }
+
+    function fn_save() {
+      let zipCode = document.getElementById('zipCode');
+      let address1 = document.getElementById('address1');
+      let address2 = document.getElementById('address2');
+      let birth = document.getElementById('user-birth');
+      let email = document.getElementById('user-email');
+      let id = document.getElementById('user-id');
+      let name = document.getElementById('user-name');
+      let phone = document.getElementById('user-tel');
+      let sex = document.getElementById('user-sex');
+      let roleType = document.getElementById('roleType');
+      let bizNo = document.getElementById('bizNo');
+      let bizName = document.getElementById('bizName');
+      let oAuth = document.getElementById('user-oauth');
+      let userPassWord = document.getElementById('userPassWord');
+      let userPoint = document.getElementById('userPoint');
+      let userLoginFailCnt = document.getElementById('userLoginFailCnt');
+      let privacy = null;
+
+      if(fn_checkBlank(name.value)) {
+        alert('이름을 입력해주세요');
+        name.focus();
+        return false;
+      }
+
+      if(fn_checkBlank(phone.value)) {
+        alert('전화번호를 입력해주세요');
+        phone.focus();
+        return false;
+      } else if(fn_registerValidationCheck('num', phone.value, 9, 12)) {
+        alert('전화번호는 "-" 제외 9~12 자리로 입력해야합니다');
+        phone.focus();
+        return false;
+      }
+
+      if(fn_checkBlank(birth.value)) {
+        alert('생년월일을 입력해주세요');
+        birth.focus();
+        return false;
+      } else if(fn_registerValidationCheck('num', birth.value, 6, 6)) {
+        alert('생년월일은 6 자리로 입력해야합니다');
+        phone.focus();
+        return false;
+      }
+
+      if(fn_checkBlank(sex.value)) {
+        alert('성별을 입력해주세요');
+        sex.focus();
+        return false;
+      }
+
+      if(fn_checkBlank(zipCode.value)) {
+        alert('우편번호를 입력해주세요');
+        zipCode.focus();
+        return false;
+      } else if(fn_checkBlank(address1.value)) {
+        alert('주소를 입력해주세요');
+        address1.focus();
+        return false;
+      } else if(fn_checkBlank(address2.value)) {
+        alert('상세주소를 입력해주세요');
+        address2.focus();
+        return false;
+      }
+
+      if(roleType.value == 'SELLER') {
+        if(fn_registerValidationCheck('num', bizNo.value, 10, 10)) {
+          alert('사업자번호는 "-" 제외 10 자리로 입력해야합니다');
+          bizNo.focus();
+          return false;
+        }
+
+        if(fn_checkBlank(bizName.value)) {
+          alert('상호명을 입력해주세요');
+          bizName.focus();
+          return false;
+        }
+      }
+
+      privacy = {
+        "userZipcode" : zipCode.value
+        ,"userAddress1" : address1.value
+        ,"userAddress2" : address2.value
+        ,"userBirth" : birth.value
+        ,"userEmail" : email.value
+        ,"userId" : id.value
+        ,"userName" : name.value
+        ,"userPhone" : phone.value
+        ,"userSex" : sex.value
+        ,"userBizName" : roleType.value == 'SELLER' ?bizName.value : '0'
+        ,"userBizNo" : roleType.value == 'SELLER' ?bizNo.value : '0'
+        ,"userRole" :  roleType.value
+        ,"oauthType" :  oAuth.value
+        ,"userPassWord" : userPassWord.value
+        ,"userPoint" : userPoint.value
+        ,"userLoginFailCnt" : userLoginFailCnt.value
+      };
+
+      $.ajax({
+          type: "PUT"
+        , url : "/api/v1/user"
+        , beforeSend: function(xhr){
+          $('.wrap-loading').removeClass('display-none');
+          xhr.setRequestHeader(header, token);
+        }
+        , contentType : "application/json"
+        , data : JSON.stringify(privacy)
+        , success : function(data) {
+          if(data.resultCode == 204) {
+            alert('수정이 완료되었습니다');
+            $('.wrap-div').addClass('display-none');
+            fn_appr();
+          } else {
+            alert('수정이 실패하였습니다');
+          }
+        }
+        , complete:function(){
+            $('.wrap-loading').addClass('display-none');
+        }
+        , error : function(e) {
+          alert('수정이 실패하였습니다');
+        }
+      });
+    }
+  </script>
+</head>
+<body>
+  <th:block th:replace="fragment/header :: headerFragment"></th:block>
+  <div class="container">
+    <div class="input-form-backgroud row">
+      <div class="input-form col-md-12 mx-auto">
+        <h4 class="mb-3">계정 관리</h4>
+          <div class="row">
+            <div class="col-md-4 mb-3">
+              <label for="userId">사용자 아이디</label>
+              <input type="text" class="form-control" id="userId">
+            </div>
+        <div>
+          <div class="mb-3 inline-block">
+            <button type="button" class="btn btn-warning btn-select" id="btn-appr">사용자 조회</button>
+          </div>
+        </div>
+
+        <hr class="mb-4">
+
+        <div id="page"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="wrap-div display-none">
+    <div class="wrap-div-main">
+      <div class="div-main">
+        <h4 class="mb-3 margin-left margin-top">회원 정보 수정</h4>
+        <div class="row">
+          <div class="col-md-5 mb-3 margin-left">
+            <label for="user-id">아이디</label>
+            <input type="text" class="form-control" id="user-id" disabled>
+          </div>
+          <div class="col-md-5 mb-3">
+            <label for="user-name">이름</label>
+            <input type="text" class="form-control" id="user-name">
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-md-5 mb-3 margin-left">
+            <label for="user-id">전화번호</label>
+            <input type="text" class="form-control" id="user-tel" oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');">
+          </div>
+          <div class="col-md-5 mb-3">
+            <label for="user-name">생년월일</label>
+            <input type="text" class="form-control" id="user-birth" oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');">
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-md-5 mb-3 margin-left">
+            <label for="user-sex">성별</label>
+            <select class="form-select" id="user-sex">
+              <option selected value="M">남</option>
+              <option value="W">여</option>
+            </select>
+          </div>
+          <div class="col-md-5 mb-3">
+            <label for="user-email">이메일</label>
+            <input type="text" class="form-control" id="user-email" disabled>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="mb-3 margin-left">
+            <label for="zipCode">주소</label>
+            <div class="center">
+              <div class="inline-block col-md-4">
+                <input type="text" class="form-control" id="zipCode">
+              </div>
+              <div class="inline-block">
+                <button type="button" class="btn btn-warning margin-left" id="btn-address-search">검색</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mb-3 margin-left margin-right">
+          <input type="text" class="form-control" id="address1">
+        </div>
+
+        <div class="mb-3 margin-left margin-right">
+          <input type="text" class="form-control" id="address2">
+        </div>
+
+        <div class="row">
+          <div class="col-md-5 mb-3 margin-left">
+            <label for="roleType">이용 유형</label>
+            <select class="form-select" id="roleType">
+              <option selected value="ADMIN">관리자</option>
+              <option value="BUYER">일반구매자</option>
+              <option value="SELLER">사업구매자</option>
+            </select>
+          </div>
+          <div class="col-md-5 mb-3">
+            <label for="roleType">가입 유형</label>
+            <select class="form-select" id="user-oauth" disabled>
+              <option selected value="PETMAP">사이트</option>
+              <option value="KAKAO">카카오</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-md-5 mb-3 margin-left">
+            <label for="bizNo">사업자번호</label>
+            <input type="text" class="form-control" id="bizNo"
+                   oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');">
+          </div>
+          <div class="col-md-5 mb-3">
+            <label for="bizName">상호명</label>
+            <input type="text" class="form-control" id="bizName">
+          </div>
+        </div>
+
+        <input type="hidden" id="userPassWord">
+        <input type="hidden" id="userLoginFailCnt">
+        <input type="hidden" id="userPoint">
+
+        <div class="mb-3 margin-left">
+          <button type="button" class="btn btn-warning" id="btn-pwinit">비밀번호 초기화</button>
+          <button type="button" class="btn btn-warning" id="btn-close">닫기</button>
+          <button type="button" class="btn btn-warning" id="btn-save">저장</button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <div class="wrap-loading display-none">
+    <div><img src="/img/loading.gif"></div>
+  </div>
+  <th:block th:replace="fragment/footer :: footerFragment"></th:block>
+</body>
+</html>

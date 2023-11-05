@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="en"
+      xmlns:th="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="_csrf" th:content="${_csrf.token}"/>
+  <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+  <link href="/css/bootstrap.min.css" rel="stylesheet">
+  <link href="/css/style.css" rel="stylesheet">
+  <script src="/js/bootstrap.min.js"></script>
+  <script src="/js/script.js"></script>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+  <script src="//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"></script>
+  <title>결제</title>
+  <style>
+    body {
+      min-height: 100vh;
+    }
+
+    .input-form {
+      max-width: 1200px;
+
+      margin-top: 80px;
+      margin-bottom: 80px;
+      padding: 32px;
+
+      background: #fff;
+      -webkit-border-radius: 10px;
+      -moz-border-radius: 10px;
+      border-radius: 10px;
+      -webkit-box-shadow: 0 8px 20px 0 rgba(0, 0, 0, 0.15);
+      -moz-box-shadow: 0 8px 20px 0 rgba(0, 0, 0, 0.15);
+      box-shadow: 0 8px 20px 0 rgba(0, 0, 0, 0.15)
+    }
+
+    .wrap-div-main{
+      position: fixed;
+      top:1%;
+      left:40%;
+    }
+
+    .div-main {
+      width: 435px;
+      height: 750px;
+      background-color: white;
+      border: 4px solid #FFC107;
+      border-radius: 5px 5px 5px 5px;
+    }
+
+    .wrap-div-main2{
+      position: fixed;
+      top:30%;
+      left:40%;
+    }
+
+    .div-main2 {
+      width: 435px;
+      height: 500px;
+      background-color: white;
+      border: 4px solid #FFC107;
+      border-radius: 5px 5px 5px 5px;
+    }
+
+    .divAddress {
+      margin : 10px;
+      width : 100%;
+      height : 15%;
+      color : #BFBFBF;
+    }
+
+    .address {
+      width : 100%;
+    }
+
+    .addressTitle {
+      color : black;
+      font-weight : bold;
+    }
+
+    .deliTitle {
+      color : #565656;
+      font-weight : bold;
+      font-size : 30px;
+    }
+
+    .deliAddress {
+      color : black;
+      font-weight : bold;
+      font-size : 20px;
+    }
+
+    .deliPhone {
+      color : #BFBFBF;
+    }
+
+    .deliName {
+      color : #BFBFBF;
+    }
+
+    .item {
+      width : 100%;
+    }
+  </style>
+  <script th:inline="javascript">
+    var header = $("meta[name='_csrf_header']").attr("content");
+    var token = $("meta[name='_csrf']").attr("content");
+    var str = [[${str}]];
+
+    $(document).ready(function(){
+      fn_apprItem();
+      fn_apprCounpon();
+      fn_apprPoint();
+
+      $('#address').click(function() {
+        $('.wrap-div').removeClass('display-none');
+        fn_apprAddress();
+      });
+
+      $('#closeAddress').click(function() {
+        fn_closeAddress();
+      });
+
+      $('#addAddress').click(function() {
+        $('.wrap-div2').removeClass('display-none');
+      });
+
+      $('#closeAddAddress').click(function() {
+        fn_closeAddAddress();
+      });
+
+      $('#saveAddress').click(function() {
+        fn_saveAddress();
+      });
+
+      $('#couponList').change(function() {
+        fn_apprPay();
+      });
+
+      $('#point').change(function() {
+        if($(this).val() < 0) {
+          alert('포인트는 0 이상만 입력이 가능합니다');
+          $(this).val(0);
+        } else if($(this).val() > $('.point').data('point')) {
+          alert('잔여포인트가 부족합니다');
+          $(this).val(0);
+        }
+
+        fn_apprPay();
+      });
+
+      $('#confirm').click(function() {
+        fn_confirm();
+      });
+
+      $('#searchAddress').click(function() {
+        new daum.Postcode({
+            oncomplete: function(data) {
+                // 팝업에서 검색결과 항목을 클릭했을때 실행할 코드를 작성하는 부분.
+
+                // 각 주소의 노출 규칙에 따라 주소를 조합한다.
+                // 내려오는 변수가 값이 없는 경우엔 공백('')값을 가지므로, 이를 참고하여 분기 한다.
+                var addr = ''; // 주소 변수
+                var extraAddr = ''; // 참고항목 변수
+
+                //사용자가 선택한 주소 타입에 따라 해당 주소 값을 가져온다.
+                if (data.userSelectedType === 'R') { // 사용자가 도로명 주소를 선택했을 경우
+                    addr = data.roadAddress;
+                } else { // 사용자가 지번 주소를 선택했을 경우(J)
+                    addr = data.jibunAddress;
+                }
+
+                // 사용자가 선택한 주소가 도로명 타입일때 참고항목을 조합한다.
+                if(data.userSelectedType === 'R'){
+                    // 법정동명이 있을 경우 추가한다. (법정리는 제외)
+                    // 법정동의 경우 마지막 문자가 "동/로/가"로 끝난다.
+                    if(data.bname !== '' && /[동|로|가]$/g.test(data.bname)){
+                        extraAddr += data.bname;
+                    }
+                    // 건물명이 있고, 공동주택일 경우 추가한다.
+                    if(data.buildingName !== '' && data.apartment === 'Y'){
+                        extraAddr += (extraAddr !== '' ? ', ' + data.buildingName : data.buildingName);
+                    }
+                    // 표시할 참고항목이 있을 경우, 괄호까지 추가한 최종 문자열을 만든다.
+                    if(extraAddr !== ''){
+                        extraAddr = ' (' + extraAddr + ')';
+                    }
+                    // 조합된 참고항목을 해당 필드에 넣는다.
+                    document.getElementById("address2").value = extraAddr;
+
+                } else {
+                    document.getElementById("address2").value = '';
+                }
+
+                // 우편번호와 주소 정보를 해당 필드에 넣는다.
+                document.getElementById('zipCode').value = data.zonecode;
+                document.getElementById("address1").value = addr;
+                // 커서를 상세주소 필드로 이동한다.
+                document.getElementById("address2").focus();
+            }
+        }).open();
+      });
+    });
+
+    function fn_apprAddress() {
+      $.ajax({
+          type: "GET"
+        , url : "/api/v1/user/address/"+ $('#login-user-id').val()
+        , dataType: "json"
+        , success : function(data) {
+          let str = '';
+
+          if(data.resultCode == 200) {
+            for(var i=0; i<5; i++) {
+              str = '<div class="addressTitle">배송지' + (i+1) + '</div>';
+              str += '<img style="width:250px; height:30px;" src="/img/nodata.png">';
+              $('.divAddress' + (i+1)).html(str);
+            }
+
+            for(var i=0; i<data.result.length; i++) {
+              let address = data.result[i].addressUserZipcode + ' ' + data.result[i].addressUserAddress1 + ' ' + data.result[i].addressUserAddress2;
+
+              str = '<div class="addressTitle" data-id="'+ data.result[i].addressId + '" ';
+              str += 'data-address="'+ address + '" ';
+              str += 'data-phone="'+ data.result[i].addressUserPhone + '" ';
+              str += 'data-name="'+ data.result[i].addressUserName + '" ';
+              str += '>배송지 ' + (i+1) + '</div>';
+              str += '주소 : ' + address;
+              str += '<br>';
+              str += '받는사람 / 전화번호 : ' + data.result[i].addressUserName + '/' + data.result[i].addressUserPhone;
+              str += '<br>';
+              str += '<a class="addressChoice">선택</a> | <a class="addressDelete">삭제</a>'
+              $('.divAddress' + (i+1)).html(str);
+            }
+
+            $('.addressChoice').click(function() {
+              let str = '<div class="deliAddress">';
+                  str += $(this).siblings('.addressTitle').data('address')
+                  str += '</div>';
+                  str += '<div class="deliPhone">';
+                  str +=  $(this).siblings('.addressTitle').data('phone')
+                  str += '</div>';
+                  str += '<div class="deliName">';
+                  str +=  $(this).siblings('.addressTitle').data('name')
+                  str += '</div>';
+
+
+              $('.address').html(str);
+              fn_closeAddress();
+            });
+
+            $('.addressDelete').click(function() {
+              let userAddress = {
+                "addressId" : $(this).siblings('.addressTitle').data('id')
+              }
+
+              if(!confirm('삭제하시겠습니까?')) {
+                 return false;
+              }
+
+              $.ajax({
+                  type: "DELETE"
+                , url : "/api/v1/user/address"
+                , beforeSend: function(xhr){
+                  $('.wrap-loading').removeClass('display-none');
+                  xhr.setRequestHeader(header, token);
+                }
+                , contentType : "application/json"
+                , data : JSON.stringify(userAddress)
+                , success : function(data) {
+                  if(data.resultCode == 200) {
+                    alert('삭제가 완료되었습니다');
+                    fn_apprAddress();
+                  } else {
+                    alert('삭제가 실패했습니다');
+                  }
+                }
+                , complete:function(){
+                    $('.wrap-loading').addClass('display-none');
+                }
+                , error : function(e) {
+                  alert('삭제가 실패했습니다');
+                }
+              });
+            });
+          } else {
+            alert('조회가 실패하였습니다');
+          }
+        }
+        , beforeSend:function(){
+            $('.wrap-loading').removeClass('display-none');
+        }
+        , complete:function(){
+            $('.wrap-loading').addClass('display-none');
+        }
+        , error : function(e) {
+          alert('조회가 실패하였습니다');
+        }
+      });
+    }
+
+    function fn_closeAddress() {
+      $('.wrap-div').addClass('display-none');
+      $('.divAddress1').html('');
+      $('.divAddress2').html('');
+      $('.divAddress3').html('');
+      $('.divAddress4').html('');
+      $('.divAddress5').html('');
+    }
+
+    function fn_closeAddAddress() {
+      $('.wrap-div2').addClass('display-none');
+
+      $('#phone').val('');
+      $('#zipCode').val('');
+      $('#address1').val('');
+      $('#address2').val('');
+    }
+
+    function fn_saveAddress() {
+      let userAddress = {
+          "user" : $('#login-user-id').val()
+        , "addressUserPhone" : $('#phone').val()
+        , "addressUserZipcode" : $('#zipCode').val()
+        , "addressUserAddress1" : $('#address1').val()
+        , "addressUserAddress2" : $('#address2').val()
+        , "addressUserName" : $('#name').val()
+      }
+
+      $.ajax({
+          type: "POST"
+        , url : "/api/v1/user/address"
+        , beforeSend: function(xhr){
+          $('.wrap-loading').removeClass('display-none');
+          xhr.setRequestHeader(header, token);
+        }
+        , contentType : "application/json"
+        , data : JSON.stringify(userAddress)
+        , success : function(data) {
+          if(data.resultCode == 201) {
+            alert('저장이 완료되었습니다');
+            fn_closeAddAddress();
+            fn_apprAddress();
+          } else {
+            if(data.divisionCode == 'G015') {
+              alert(data.reason);
+            } else {
+              alert('저장이 실패했습니다');
+            }
+          }
+        }
+        , complete:function(){
+            $('.wrap-loading').addClass('display-none');
+        }
+        , error : function(e) {
+          alert('저장이 실패했습니다');
+        }
+      });
+    }
+
+    function fn_apprItem() {
+      $.ajax({
+          type: "GET"
+        , url : "/api/v1/item/list/"+ str
+        , dataType: "json"
+        , success : function(data) {
+          let str = '';
+
+          if(data.resultCode == 200) {
+            for(key in data.result) {
+              str += '<div style="font-size:16px; font-weight:bold; border:1px solid #E0D2C9; color:#565656; margin-bottom:10px;">';
+              str += '<div class="deliPrice" data-price="'+ data.result[key][0].selDeilPrice +'" style="width:100%; background-color:#E9E7E5;">' + key.split('/')[1] + '</div>';
+              for(var i=0; i<data.result[key].length; i++) {
+                str += '<div class="inline-block" style="width:100%; height:150px; color:black;">';
+                str += '  <div style="width:100%; font-size:20px; font-weight:bold; margin:10px;">';
+                str += '    <img style="width:100px; height:100px;" src="/files/item/'+ data.result[key][i].selMiniImg +'">';
+                str += data.result[key][i].selItemName;
+                str += '  </div>';
+                str += '  <div class="itemData" data-store="' + data.result[key][i].user +  '"';
+                str += ' data-itemId="' + data.result[key][i].selItemId +  '"';
+                str += ' data-itemCnt="' + data.result[key][i].selSaleCount +  '"';
+                str += ' data-itemDeli="' + data.result[key][i].selDeilPrice +  '"';
+                str += ' data-itemPrice="' + data.result[key][i].selItemPrice +  '"';
+                str += ' style="width:100%; font-size:15px; font-weight:bold; margin:10px;">';
+                str += '    <div class="inline-block" style="width:49%;">수량 : '+ data.result[key][i].selSaleCount +'개</div>';
+                str += '    <div class="inline-block price" style="width:49%;" data-price="'+ (data.result[key][i].selSaleCount * data.result[key][i].selItemPrice) +'">금액 : '+ (data.result[key][i].selSaleCount * data.result[key][i].selItemPrice) +'원</div>';
+                str += '  </div>';
+                str += '</div>';
+              }
+              str += '</div>';
+            }
+
+            $('.item').html(str);
+            fn_apprPay();
+          } else {
+            alert('조회가 실패하였습니다');
+          }
+        }
+        , beforeSend:function(){
+            $('.wrap-loading').removeClass('display-none');
+        }
+        , complete:function(){
+            $('.wrap-loading').addClass('display-none');
+        }
+        , error : function(e) {
+          alert('조회가 실패하였습니다');
+        }
+      });
+    }
+
+    function fn_apprCounpon() {
+      $.ajax({
+          type: "GET"
+        , url : "/api/v1/usercoupon/list/"+ $('#login-user-id').val()
+        , dataType: "json"
+        , success : function(data) {
+
+          if(data.resultCode == 200) {
+            $("#couponList").append('<option value="">'+ '- 선택 -' +'</option>');
+
+            for(var i=0; i<data.result.length; i++) {
+              $("#couponList").append('<option value="' + data.result[i].couponDto.couponType+'/'+data.result[i].couponDto.couponAmt+'/'+data.result[i].couponDto.couponCode+'">'+ data.result[i].couponDto.couponName +'</option>');
+            }
+          } else {
+            alert('조회가 실패하였습니다');
+          }
+        }
+        , beforeSend:function(){
+            $('.wrap-loading').removeClass('display-none');
+        }
+        , complete:function(){
+            $('.wrap-loading').addClass('display-none');
+        }
+        , error : function(e) {
+          alert('조회가 실패하였습니다');
+        }
+      });
+    }
+
+    function fn_apprPoint() {
+      $.ajax({
+          type: "GET"
+        , url : "/api/v1/user/id/"+ $('#login-user-id').val()
+        , dataType: "json"
+        , success : function(data) {
+          if(data.resultCode == 200) {
+            $('.point').html('잔여포인트 : ' + data.result.userPoint + ' Point');
+            $('.point').data('point', data.result.userPoint);
+          } else {
+            alert('조회가 실패하였습니다');
+          }
+        }
+        , beforeSend:function(){
+            $('.wrap-loading').removeClass('display-none');
+        }
+        , complete:function(){
+            $('.wrap-loading').addClass('display-none');
+        }
+        , error : function(e) {
+          alert('조회가 실패하였습니다');
+        }
+      });
+    }
+
+    function fn_apprPay() {
+      let tot = 0;
+      let coupon = 0;
+      let deli = 0;
+      let point = 0;
+      let str = '';
+
+      $('.price').each(function(){
+        tot += parseInt($(this).data('price'));
+      });
+
+      $('.deliPrice').each(function(){
+        deli += parseInt($(this).data('price'));
+      });
+
+      if(!fn_checkBlank($('#couponList').val())) {
+        var array = $('#couponList').val().split('/');
+
+        if(array[0] == 'PERCENT') {
+          coupon = (array[1] / 100) * tot;
+        } else {
+          coupon = array[1];
+        }
+      }
+
+      if(!fn_checkBlank($('#point').val())) {
+        point = $('#point').val();
+      }
+
+      str += '<div id="totItemPrice" data-totprice="'+ tot +'"> 상품금액 : ' + tot + '원 </div>';
+      str += '<div id="totCoupon" data-totprice="'+ coupon +'" style="color:red;"> 할인금액 : -' + coupon + '원 </div>';
+      str += '<div id="totPoint" data-totprice="'+ point +'" style="color:blue;"> 포인트 : -' + point + '원 </div>';
+      str += '<div id="totDeliPrice" data-totprice="'+ deli +'"> 배송비 : ' + deli + '원 </div>';
+      str += '<div style="font-size:20px; font-weight:bold;" id="totPrice" data-totprice="' + (tot - coupon + deli - point) + '"> 총 결제금액 : ' + (tot - coupon + deli - point) + '원 </div>';
+
+      $('.pay').html(str);
+    }
+
+    function fn_confirm() {
+      let user = $('#login-user-id').val();
+
+      let address = {
+          "address" : $('.deliAddress').html()
+        , "name" : $('.deliName').html()
+        , "phone" : $('.deliPhone').html()
+      };
+
+      let item = new Array();
+
+      let dc = {
+          "point" : $('#point').val()
+        , "couponCode" : $('#couponList').val().split('/')[2]
+      }
+
+      let pay = {
+          "itemPrice" : $('#totItemPrice').data('totprice')
+        , "point" : $('#totPoint').data('totprice')
+        , "coupon" : $('#totCoupon').data('totprice')
+        , "deliPrice" : $('#totDeliPrice').data('totprice')
+        , "totPrice" : $('#totPrice').data('totprice')
+      }
+
+      $('.itemData').each(function(){
+        var data = new Object();
+
+        data.store = $(this).data('store');
+        data.itemId = $(this).data('itemid');
+        data.itemCnt = $(this).data('itemcnt');
+        data.itemDeli = $(this).data('itemdeli');
+        data.itemPrice = $(this).data('itemprice');
+
+        item.push(data);
+      });
+
+      let json = {
+          "user" : user
+        , "address" : address
+        , "item" : item
+        , "dc" : dc
+        , "pay" : pay
+      };
+
+      if(fn_checkBlank(address.address)) {
+        alert('배송지를 선택해주세요');
+        return false;
+      }
+
+      $.ajax({
+          type: "POST"
+        , url : "/api/v1/pay"
+        , beforeSend: function(xhr){
+          $('.wrap-loading').removeClass('display-none');
+          xhr.setRequestHeader(header, token);
+        }
+        , contentType : "application/json"
+        , data : JSON.stringify(json)
+        , success : function(data) {
+          if(data.resultCode == 201) {
+            alert('결제가 완료되었습니다');
+            location.href = '/mypage/order';
+          } else {
+            if(data.divisionCode == 'G016') {
+              alert(data.reason);
+            } else {
+              alert('결제가 실패했습니다');
+            }
+          }
+        }
+        , complete:function(){
+            $('.wrap-loading').addClass('display-none');
+        }
+        , error : function(e) {
+          alert('결제가 실패했습니다');
+        }
+      });
+    }
+  </script>
+</head>
+<body>
+  <th:block th:replace="fragment/header :: headerFragment"></th:block>
+  <div class="container">
+    <div class="input-form-backgroud row">
+      <div class="input-form col-md-12 mx-auto">
+        <h4 class="mb-3">결제하기</h4>
+        <div class="mb-3 deliTitle">
+          <img style="width:40px; height:40px;" src="/img/map.png">
+          배송지
+        </div>
+        <hr class="mb-4">
+        <div class="mb-3">
+          <button type="button" class="btn btn-warning" id="address">배송지 선택</button>
+        </div>
+        <div class="col-md-6 mb-3 address"></div>
+
+        <div class="mb-3 deliTitle">
+          <img style="width:40px; height:40px;" src="/img/shoppingbag.png">
+          상품목록
+        </div>
+        <hr class="mb-4">
+        <div class="col-md-6 mb-3 item"></div>
+
+        <div class="mb-3 deliTitle">
+          <img style="width:40px; height:40px;" src="/img/mypage_coupone.png">
+          쿠폰
+        </div>
+        <hr class="mb-4">
+        <div class="col-md-6 mb-3 coupon">
+          <select class="form-select" id="couponList"></select>
+        </div>
+
+        <div class="mb-3 deliTitle">
+          <img style="width:40px; height:40px;" src="/img/mypage_point.png">
+          포인트
+        </div>
+        <hr class="mb-4">
+        <div class="col-md-6 mb-3">
+          <input id="point" class="form-control" type="number">
+          <div class="point"></div>
+        </div>
+
+        <div class="mb-3 deliTitle">
+          <img style="width:40px; height:40px;" src="/img/pay.png">
+          결제
+        </div>
+        <hr class="mb-4">
+        <div class="col-md-6 mb-3 pay"></div>
+        <div class="mb-3">
+          <button type="button" class="btn btn-warning" id="confirm">결제하기</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="wrap-div display-none">
+    <div class="wrap-div-main">
+      <div class="div-main">
+        <h4 class="mb-3 margin-left margin-top">배송지 선택</h4>
+        <div class="mb-3 margin-left divAddress divAddress1"></div>
+        <div class="mb-3 margin-left divAddress divAddress2"></div>
+        <div class="mb-3 margin-left divAddress divAddress3"></div>
+        <div class="mb-3 margin-left divAddress divAddress4"></div>
+        <div class="mb-3 margin-left divAddress divAddress5"></div>
+        <div class="mb-3 margin-left">
+          <button type="button" class="btn btn-warning" id="closeAddress">닫기</button>
+          <button type="button" class="btn btn-warning" id="addAddress">배송지 추가</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="wrap-div2 display-none">
+    <div class="wrap-div-main2">
+      <div class="div-main2">
+        <h4 class="mb-3 margin-left margin-top">배송지 입력</h4>
+        <div class="mb-3 margin-left margin-right">
+          <div class="row">
+            <div class="mb-3">
+              <label for="zipCode">주소</label>
+              <div class="center">
+                <div class="inline-block col-md-4">
+                  <input type="text" class="form-control" id="zipCode" placeholder="우편번호를 입력해주세요" required>
+                </div>
+                <div class="inline-block">
+                  <button type="button" class="btn btn-warning margin-left" id="searchAddress">검색</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <input type="text" class="form-control" id="address1" placeholder="주소를 입력해주세요" required>
+          </div>
+
+          <div class="mb-3">
+            <input type="text" class="form-control" id="address2" placeholder="상세 주소를 입력해주세요" required>
+          </div>
+
+          <div class="mb-3">
+            <label for="phone">전화번호</label>
+            <input type="email" class="form-control" id="phone" placeholder="예) 01056678994"
+                   oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');" required>
+          </div>
+
+          <div class="mb-3">
+            <label for="name">받는사람</label>
+            <input type="email" class="form-control" id="name" required>
+          </div>
+
+          <div class="mb-3">
+            <button type="button" class="btn btn-warning" id="closeAddAddress">닫기</button>
+            <button type="button" class="btn btn-warning" id="saveAddress">저장</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="wrap-loading display-none">
+    <div><img src="/img/loading.gif"></div>
+  </div>
+  <th:block th:replace="fragment/footer :: footerFragment"></th:block>
+</body>
+</html>

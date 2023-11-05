@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en"
+      xmlns:th="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="_csrf" th:content="${_csrf.token}"/>
+  <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+  <title>카테고리 관리</title>
+  <link href="/css/bootstrap.min.css" rel="stylesheet">
+  <link href="/css/style.css" rel="stylesheet">
+  <script src="/js/bootstrap.min.js"></script>
+  <script src="/js/script.js"></script>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+  <style>
+    body {
+      min-height: 100vh;
+    }
+
+    .input-form {
+      max-width: 800px;
+
+      margin-top: 80px;
+      margin-bottom: 80px;
+      padding: 32px;
+
+      background: #fff;
+      -webkit-border-radius: 10px;
+      -moz-border-radius: 10px;
+      border-radius: 10px;
+      -webkit-box-shadow: 0 8px 20px 0 rgba(0, 0, 0, 0.15);
+      -moz-box-shadow: 0 8px 20px 0 rgba(0, 0, 0, 0.15);
+      box-shadow: 0 8px 20px 0 rgba(0, 0, 0, 0.15)
+    }
+
+    .wrap-div-main{
+      position: fixed;
+      top:40%;
+      left:35%;
+    }
+
+    .div-coupon {
+      width: 500px;
+      height: 250px;
+      background-color: white;
+      border: 4px solid #FFC107;
+      border-radius: 5px 5px 5px 5px;
+    }
+
+    .textarea {
+      border: 1px solid #CED4DA;
+      border-radius: 5px 5px 5px 5px;
+      width:410px;
+      height:100px;
+      resize:none;
+    }
+
+    .margin-left {
+      margin-left : 10px;
+    }
+
+    .div-coupon-view {
+      border-radius: 5px 5px 5px 5px;
+      background : #FFC107;
+      box-shadow : 5px 5px 5px 5px gray
+    }
+
+  </style>
+  <script type="text/javascript">
+    var header = $("meta[name='_csrf_header']").attr("content");
+    var token = $("meta[name='_csrf']").attr("content");
+    var fileTarget = $('.filebox .upload-hidden');
+
+    $(document).ready(function(){
+      fileTarget.on('change', function(){
+          if(window.FileReader){
+              // 파일명 추출
+              var filename = $(this)[0].files[0].name;
+          }
+
+          else {
+              // Old IE 파일명 추출
+              var filename = $(this).val().split('/').pop().split('\\').pop();
+          };
+
+          $(this).siblings('.upload-name').val(filename);
+      });
+
+      //preview image
+      var imgTarget = $('.preview-image .upload-hidden');
+
+      imgTarget.on('change', function(){
+          var parent = $(this).parent();
+          parent.children('.upload-display').remove();
+
+          if(window.FileReader){
+              //image 파일만
+              if (!$(this)[0].files[0].type.match(/image\//)) return;
+
+              var reader = new FileReader();
+              reader.onload = function(e){
+                  var src = e.target.result;
+                  parent.prepend('<div class="upload-display"><div class="upload-thumb-wrap"><img src="'+src+'" class="upload-thumb"></div></div>');
+              }
+              reader.readAsDataURL($(this)[0].files[0]);
+          }
+
+          else {
+              $(this)[0].select();
+              $(this)[0].blur();
+              var imgSrc = document.selection.createRange().text;
+              parent.prepend('<div class="upload-display"><div class="upload-thumb-wrap"><img class="upload-thumb"></div></div>');
+
+              var img = $(this).siblings('.upload-display').find('img');
+              img[0].style.filter = "progid:DXImageTransform.Microsoft.AlphaImageLoader(enable='true',sizingMethod='scale',src=\""+imgSrc+"\")";
+          }
+      });
+
+      fn_appr(0, 0);
+
+      // 팝업 닫기
+      $('#btn-close').click(function() {
+        fn_close();
+      });
+
+      // 저장
+      $('#btn-save').click(function() {
+        fn_save();
+      });
+
+      // 대분류 추가
+      $('#category1').click(function() {
+        $('.wrap-div').removeClass('display-none');
+      });
+
+      // 중분류 추가
+      $('#category2').click(function() {
+        if($('.img-choice').length == 0) {
+          alert('대분류를 선택해주세요');
+          return false;
+        }
+        $('#categoryParent').val($('.img-choice').parent().siblings('.data').data('id'));
+        $('#categoryDepth').val('1');
+
+        $('.wrap-div').removeClass('display-none');
+      });
+
+      // 소분류 추가
+      $('#category3').click(function() {
+        if($('.img-choice2').length == 0) {
+          alert('중분류를 선택해주세요');
+          return false;
+        }
+
+        $('#categoryParent').val($('.img-choice2').parent().siblings('.data').data('id'));
+        $('#categoryDepth').val('2');
+
+        $('.wrap-div').removeClass('display-none');
+      });
+    });
+
+    // 닫기
+    function fn_close() {
+      $('#categoryId').val('');
+      $('#categoryParent').val('');
+      $('#categoryDepth').val('');
+      $('#categoryName').val('');
+      $('#input_file').val('');
+      $('.upload-display').remove();
+      $('.upload-name').val('');
+
+      $('.wrap-div').addClass('display-none');
+    }
+
+    // 저장
+    function fn_save() {
+      let formData = new FormData();
+      let inputFile = $('#input_file')[0];
+      let category = {
+          "categoryId" : $('#categoryId').val()
+        , "categoryParent" : $('#categoryParent').val()
+        , "categoryDepth" : $('#categoryDepth').val()
+        , "categoryName" : $('#categoryName').val()
+        , "categoryImg" : $('.upload-name').val()
+      }
+
+      if(fn_checkBlank(category.categoryName)) {
+        alert('카테고리 명을 입력해주세요');
+        return false;
+      }
+
+      if(inputFile.files.length > 0) {
+        formData.append('file', inputFile.files[0]);
+      }
+
+      formData.append('json', new Blob([ JSON.stringify(category) ], {type : "application/json"}));
+
+      $.ajax({
+          type: $('#method').val == 'PUT' ? "PUT" : "POST"
+        , url : "/api/v1/admin/category"
+        , beforeSend: function(xhr){
+          $('.wrap-loading').removeClass('display-none');
+          xhr.setRequestHeader(header, token);
+        }
+        , contentType: false
+        , processData: false
+        , enctype : 'multipart/form-data'
+        , data : formData
+        , success : function(data) {
+          if(data.resultCode == 201 || data.resultCode == 204) {
+            alert('저장이 완료되었습니다');
+            fn_appr($('#categoryParent').val(), $('#categoryDepth').val());
+            fn_close();
+          } else {
+           alert('저장이 실패했습니다');
+          }
+        }
+        , complete:function(){
+            $('.wrap-loading').addClass('display-none');
+        }
+        , error : function(e) {
+          alert('저장이 실패했습니다');
+        }
+      });
+    }
+
+    function fn_appr(parent, depth) {
+        let str = '';
+
+        $.ajax({
+            type: "GET"
+          , url : "/api/v1/category/" + parent + "/" + depth
+          , dataType: "json"
+          , success : function(data) {
+              let str = '';
+
+              if(data.resultCode == 200) {
+                htmlInit(depth);
+
+                if(depth == 0) {
+                  for(let i=0; i < data.result.length; i++) {
+                    str += '<div class="inline-block" style="margin:5px;">';
+                    str += '<div><img class="img-main" data-id="0" style="width:100px; height:100px;" src="/files/category/' + data.result[i].categoryImg + '"/></div>';
+                    str += '<div>'+ data.result[i].categoryName +'</div>';
+                    str += '<div class="data" style="margin-top:5px"';
+                    str += ' data-id="' + data.result[i].categoryId + '"';
+                    str += ' data-parent="' + data.result[i].categoryParent + '"';
+                    str += ' data-depth="' + data.result[i].categoryDepth + '"';
+                    str += ' data-name="' + data.result[i].categoryName + '"';
+                    str += ' data-img="' + data.result[i].categoryImg + '"';
+                    str += '>';
+                    str += '<button type="button" style="margin-right:4px;" class="btn btn-warning btn-sm btn-put">수정</button>';
+                    str += '<button type="button" class="btn btn-warning btn-sm btn-del">삭제</button>';
+                    str += '</div>';
+                    str += '</div>';
+                  }
+
+                  $('#top').html(str);
+                } else if(depth == 1) {
+
+                  for(let i=0; i < data.result.length; i++) {
+                    str += '<div class="inline-block" style="margin:5px;">';
+                    str += '<div><img class="img-main" data-id="1" style="width:100px; height:100px;" src="/files/category/' + data.result[i].categoryImg + '"/></div>';
+                    str += '<div>'+ data.result[i].categoryName +'</div>';
+                    str += '<div class="data" style="margin-top:5px"';
+                    str += ' data-id="' + data.result[i].categoryId + '"';
+                    str += ' data-parent="' + data.result[i].categoryParent + '"';
+                    str += ' data-depth="' + data.result[i].categoryDepth + '"';
+                    str += ' data-name="' + data.result[i].categoryName + '"';
+                    str += ' data-img="' + data.result[i].categoryImg + '"';
+                    str += '>';
+                    str += '<button type="button" style="margin-right:4px;" class="btn btn-warning btn-sm btn-put">수정</button>';
+                    str += '<button type="button" class="btn btn-warning btn-sm btn-del">삭제</button>';
+                    str += '</div>';
+                    str += '</div>';
+                  }
+
+                  $('#middle').html(str);
+                } else {
+
+                  for(let i=0; i < data.result.length; i++) {
+                    str += '<div class="inline-block" style="margin:5px;">';
+                    str += '<div><img class="img-main" style="width:100px; height:100px;" src="/files/category/' + data.result[i].categoryImg + '"/></div>';
+                    str += '<div>'+ data.result[i].categoryName +'</div>';
+                    str += '<div class="data" style="margin-top:5px"';
+                    str += ' data-id="' + data.result[i].categoryId + '"';
+                    str += ' data-parent="' + data.result[i].categoryParent + '"';
+                    str += ' data-depth="' + data.result[i].categoryDepth + '"';
+                    str += ' data-name="' + data.result[i].categoryName + '"';
+                    str += ' data-img="' + data.result[i].categoryImg + '"';
+                    str += '>';
+                    str += '<button type="button" style="margin-right:4px;" class="btn btn-warning btn-sm btn-put">수정</button>';
+                    str += '<button type="button" class="btn btn-warning btn-sm btn-del">삭제</button>';
+                    str += '</div>';
+                    str += '</div>';
+
+                    $('#bottom').html(str);
+                  }
+
+                }
+
+              $('.btn-put').off('click');
+              $('.btn-del').off('click');
+              $('.img-main').off('click');
+
+              // 수정 버튼
+              $('.btn-put').click(function() {
+                $('.wrap-div').removeClass('display-none');
+
+                $('#method').val('PUT');
+                $('#categoryId').val($(this).parent().data('id'));
+                $('#categoryParent').val($(this).parent('div').data('parent'));
+                $('#categoryDepth').val($(this).parent('div').data('depth'));
+                $('#categoryName').val($(this).parent('div').data('name'));
+                $('.upload-name').val($(this).parent('div').data('img'));
+                $('.upload-name').parent().prepend('<div class="upload-display"><div class="upload-thumb-wrap"><img src="/files/category/'+ $(this).parent('div').data('img') +'" class="upload-thumb"></div></div>');
+              });
+
+              // 삭제 버튼
+              $('.btn-del').click(function() {
+                let parent = $(this).parent().data('parent');
+                let depth = $(this).parent().data('depth');
+                let category = {
+                  "categoryId" : $(this).parent().data('id')
+                }
+
+                if(confirm('삭제하시겠습니까?')) {
+                  $.ajax({
+                      type: "DELETE"
+                    , url : "/api/v1/admin/category"
+                    , beforeSend: function(xhr){
+                      $('.wrap-loading').removeClass('display-none');
+                      xhr.setRequestHeader(header, token);
+                    }
+                    , contentType : "application/json"
+                    , data : JSON.stringify(category)
+                    , success : function(data) {
+                      if(data.resultCode == 200) {
+                        alert('삭제가 완료되었습니다');
+                        console.log($(this).parent().data('parent'));
+                        fn_appr(parent, depth);
+                      } else {
+                        alert('삭제가 실패하였습니다');
+                      }
+                    }
+                    , complete:function(){
+                        $('.wrap-loading').addClass('display-none');
+                    }
+                    , error : function(e) {
+                      alert('삭제가 실패하였습니다');
+                    }
+                  });
+                } else {
+                  return false;
+                }
+              });
+
+              $('.img-main').click(function() {
+                if($(this).data('id') == '0') {
+                  $('.img-choice').removeClass('img-choice');
+                  $(this).addClass('img-choice');
+                  fn_appr($(this).parent().siblings('.data').data('id'), 1);
+                } else if($(this).data('id') == '1') {
+                  $('.img-choice2').removeClass('img-choice2');
+                  $(this).addClass('img-choice2');
+                  fn_appr($(this).parent().siblings('.data').data('id'), 2);
+                }
+              });
+
+              } else {
+                if(data.divisionCode == 'G013') {
+                  alert(data.resultMsg);
+                  htmlInit(depth);
+                } else {
+                  alert('조회가 실패하였습니다');
+                  htmlInit(depth);
+                }
+              }
+          }
+          , beforeSend:function(){
+              $('.wrap-loading').removeClass('display-none');
+          }
+          , complete:function(){
+              $('.wrap-loading').addClass('display-none');
+          }
+          , error : function(e) {
+            alert('조회가 실패하였습니다');
+            htmlInit(depth);
+          }
+        });
+      }
+
+    function htmlInit(depth) {
+      if(depth == 0) {
+        $('#top').html('');
+        $('#middle').html('');
+        $('#bottom').html('');
+      } else if(depth == 1) {
+        $('#middle').html('');
+        $('#bottom').html('');
+      } else {
+        $('#bottom').html('');
+      }
+    }
+  </script>
+</head>
+<body>
+  <th:block th:replace="fragment/header :: headerFragment"></th:block>
+  <div class="container">
+    <div class="input-form-backgroud row">
+      <div class="input-form col-md-12 mx-auto">
+        <h4 class="mb-3">카테고리 관리</h4>
+
+        <hr class="mb-4">
+
+        <h5>대분류</h5>
+        <button type="button" class="btn btn-warning btn-select" id="category1">대분류 추가</button>
+        <div class="mb-3" id="top"></div>
+
+        <h5>중분류</h5>
+        <button type="button" class="btn btn-warning btn-select" id="category2">중분류 추가</button>
+        <div class="mb-3" id="middle"></div>
+
+        <h5>소분류</h5>
+        <button type="button" class="btn btn-warning btn-select" id="category3">소분류 추가</button>
+        <div class="mb-3" id="bottom"></div>
+
+      </div>
+    </div>
+  </div>
+
+  <div class="wrap-div display-none">
+    <div class="wrap-div-main">
+      <div class="div-coupon">
+        <input type="hidden" id="method">
+        <h4 class="mb-3 margin-left margin-top">카테고리 추가</h4>
+
+        <div class="mb-3 margin-left margin-right">
+          <label for="categoryName">카테고리 명</label>
+          <input type="text" class="form-control" id="categoryName">
+          <input type="hidden" id="categoryParent">
+          <input type="hidden" id="categoryDepth">
+          <input type="hidden" id="categoryId">
+        </div>
+
+        <div class="mb-3 margin-left margin-right">
+          <div class="filebox bs3-primary preview-image">
+            <input class="upload-name" value="파일선택" disabled="disabled" style="width: 200px;">
+            <label for="input_file">이미지 업로드</label>
+            <input type="file" id="input_file" class="upload-hidden">
+          </div>
+        </div>
+
+        <div class="col-md-5 mb-3 margin-left">
+          <button type="button" class="btn btn-warning" id="btn-close">닫기</button>
+          <button type="button" class="btn btn-warning" id="btn-save">저장</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="wrap-loading display-none">
+    <div><img src="/img/loading.gif"></div>
+  </div>
+  <th:block th:replace="fragment/footer :: footerFragment"></th:block>
+</body>
+</html>

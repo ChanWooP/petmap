@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en"
+      xmlns:th="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="_csrf" th:content="${_csrf.token}"/>
+  <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+  <title>장바구니</title>
+  <link href="/css/bootstrap.min.css" rel="stylesheet">
+  <link href="/css/style.css" rel="stylesheet">
+  <script src="/js/bootstrap.min.js"></script>
+  <script src="/js/script.js"></script>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+  <style>
+    body {
+      min-height: 100vh;
+    }
+
+    .input-form {
+      max-width: 1300px;
+
+      margin-top: 80px;
+      margin-bottom: 80px;
+      padding: 32px;
+
+      background: #fff;
+      -webkit-border-radius: 10px;
+      -moz-border-radius: 10px;
+      border-radius: 10px;
+      -webkit-box-shadow: 0 8px 20px 0 rgba(0, 0, 0, 0.15);
+      -moz-box-shadow: 0 8px 20px 0 rgba(0, 0, 0, 0.15);
+      box-shadow: 0 8px 20px 0 rgba(0, 0, 0, 0.15)
+    }
+  </style>
+  <script th:inline="javascript">
+    var header = $("meta[name='_csrf_header']").attr("content");
+    var token = $("meta[name='_csrf']").attr("content");
+
+    $(document).ready(function(){
+      fn_appr();
+    });
+
+    function fn_appr() {
+      $.ajax({
+          type: "GET"
+        , url : "/api/v1/usercart/" + $('#login-user-id').val()
+        , dataType: "json"
+        , success : function(data) {
+            let str = '';
+            let tot = 0;
+            let deli = 0;
+
+            let store = '';
+            let item = '';
+            let cnt = '';
+
+            for(key in data.result) {
+              var st = key.split('/')[0];
+              str += '<div style="font-size:16px; font-weight:bold; border:1px solid #E0D2C9; color:#565656; margin-bottom:10px;">';
+              str += '<div class="deliPrice" data-price="'+ data.result[key][0].selDeilPrice +'" style="width:100%; background-color:#E9E7E5;">' + key.split('/')[1] + '</div>';
+
+              deli += data.result[key][0].selDeilPrice;
+
+              for(var i=0; i<data.result[key].length; i++) {
+                store += st + '!';
+                item += data.result[key][i].selItemId + '!';
+                cnt += data.result[key][i].selSaleCount + '!';
+
+                str += '<div class="inline-block" style="width:100%; height:200px; color:black;">';
+                str += '  <div style="width:100%; font-size:20px; font-weight:bold; margin:10px;">';
+                str += '    <img style="width:100px; height:100px;" src="/files/item/'+ data.result[key][i].selMiniImg +'">';
+                str += data.result[key][i].selItemName;
+                str += '  </div>';
+                str += '  <div class="itemData" data-store="' + data.result[key][i].user +  '"';
+                str += ' data-itemId="' + data.result[key][i].selItemId +  '"';
+                str += ' data-itemCnt="' + data.result[key][i].selSaleCount +  '"';
+                str += ' data-itemDeli="' + data.result[key][i].selDeilPrice +  '"';
+                str += ' data-itemPrice="' + data.result[key][i].selItemPrice +  '"';
+                str += ' style="width:100%; font-size:15px; font-weight:bold; margin:10px;">';
+                str += '    <div class="inline-block" style="width:49%;">수량 : '+ data.result[key][i].selSaleCount +'개</div>';
+                str += '    <div class="inline-block price" style="width:49%;" data-price="'+ (data.result[key][i].selSaleCount * data.result[key][i].selItemPrice) +'">금액 : '+ (data.result[key][i].selSaleCount * data.result[key][i].selItemPrice) +'원</div>';
+
+                tot += (data.result[key][i].selSaleCount * data.result[key][i].selItemPrice);
+
+                str += '  </div>';
+                str += '<button type="button" class="btn btn-warning plus" style="margin-left:10px;">수량 +</button>';
+                str += '<button type="button" class="btn btn-warning minus" style="margin-left:10px;">수량 -</button>';
+                str += '<button type="button" class="btn btn-warning delete" style="margin-left:10px;">삭제</button>';
+                str += '</div>';
+              }
+              str += '</div>';
+            }
+
+
+
+            str += '<div> 상품금액 : ' + tot + '원 </div>';
+            str += '<div> 배송비 : ' + deli + '원 </div>';
+            str += '<div style="font-size:20px; font-weight:bold;"> 총 금액 : ' + (tot + deli) + '원 </div>';
+            str += '<button type="button" class="btn btn-warning pay">결제하기</button>';
+            $('#cart-div').html(str);
+
+            $('.plus').click(function() {
+              fn_save($(this).siblings('.itemData'), 1)
+            });
+
+            $('.minus').click(function() {
+              fn_save($(this).siblings('.itemData'), -1)
+            });
+
+            $('.delete').click(function() {
+              fn_delete($(this).siblings('.itemData'));
+            });
+
+            $('.pay').click(function() {
+              location.href = '/pay?store=' + store + '&item=' + item + '&cnt=' + cnt;
+            });
+
+        }
+        , beforeSend:function(){
+            $('.wrap-loading').removeClass('display-none');
+        }
+        , complete:function(){
+            $('.wrap-loading').addClass('display-none');
+        }
+        , error : function(e) {
+          alert('조회가 실패하였습니다');
+        }
+      });
+    }
+
+    function fn_save(data, num) {
+      let item = {
+          "user" : data.data('store').split('/')[0]
+        , "selItemId" : data.data('itemid')
+      }
+
+      let usercart = {
+          "user" : $('#login-user-id').val()
+        , "item" : item
+        , "cartCnt" : data.data('itemcnt') + num
+      }
+
+      if(usercart.cartCnt <= 0) {
+        fn_delete(data);
+        return false;
+      }
+
+      $.ajax({
+          type: "PUT"
+        , url : "/api/v1/usercart"
+        , beforeSend: function(xhr){
+          $('.wrap-loading').removeClass('display-none');
+          xhr.setRequestHeader(header, token);
+        }
+        , contentType : "application/json"
+        , data : JSON.stringify(usercart)
+        , success : function(data) {
+          if(data.resultCode == 204) {
+            fn_appr();
+          } else {
+            alert('저장이 실패하였습니다');
+          }
+        }
+        , complete:function(){
+            $('.wrap-loading').addClass('display-none');
+        }
+        , error : function(e) {
+          alert('저장이 실패하였습니다');
+        }
+      });
+    }
+
+    function fn_delete(data) {
+      let item = {
+          "user" : data.data('store').split('/')[0]
+        , "selItemId" : data.data('itemid')
+      }
+
+      let usercart = {
+          "user" : $('#login-user-id').val()
+        , "item" : item
+        , "cartCnt" : 0
+      }
+
+      $.ajax({
+          type: "DELETE"
+        , url : "/api/v1/usercart"
+        , beforeSend: function(xhr){
+          $('.wrap-loading').removeClass('display-none');
+          xhr.setRequestHeader(header, token);
+        }
+        , contentType : "application/json"
+        , data : JSON.stringify(usercart)
+        , success : function(data) {
+          if(data.resultCode == 200) {
+            fn_appr();
+          } else {
+            alert('삭제가 실패하였습니다');
+          }
+        }
+        , complete:function(){
+            $('.wrap-loading').addClass('display-none');
+        }
+        , error : function(e) {
+          alert('삭제가 실패하였습니다');
+        }
+      });
+    }
+  </script>
+</head>
+<body>
+  <th:block th:replace="fragment/header :: headerFragment"></th:block>
+  <div class="container">
+    <div class="input-form-backgroud row">
+      <div class="input-form col-md-12 mx-auto">
+        <h4 class="mb-3">장바구니</h4>
+        <hr class="mb-4">
+        <div id="cart-div"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="wrap-loading display-none">
+    <div><img src="/img/loading.gif"></div>
+  </div>
+  <th:block th:replace="fragment/footer :: footerFragment"></th:block>
+</body>
+</html>

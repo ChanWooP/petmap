@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="en"
+      xmlns:th="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="_csrf" th:content="${_csrf.token}"/>
+  <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+  <title>상품구매</title>
+  <link href="/css/bootstrap.min.css" rel="stylesheet">
+  <link href="/css/style.css" rel="stylesheet">
+  <script src="/js/bootstrap.min.js"></script>
+  <script src="/js/script.js"></script>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+  <style>
+    body {
+      min-height: 100vh;
+    }
+
+    .input-form {
+      max-width: 1300px;
+
+      margin-top: 80px;
+      margin-bottom: 80px;
+      padding: 32px;
+
+      background: #fff;
+      -webkit-border-radius: 10px;
+      -moz-border-radius: 10px;
+      border-radius: 10px;
+      -webkit-box-shadow: 0 8px 20px 0 rgba(0, 0, 0, 0.15);
+      -moz-box-shadow: 0 8px 20px 0 rgba(0, 0, 0, 0.15);
+      box-shadow: 0 8px 20px 0 rgba(0, 0, 0, 0.15)
+    }
+
+    .margin-left {
+      margin-left : 10px;
+    }
+
+    .left-div {
+      width:49%;
+      height:410px;
+      border : 1px solid #EBEBEB;
+      padding : 10px;
+    }
+
+    .right-div {
+      width:49%;
+      height:410px;
+      vertical-align : top;
+      padding : 10px;
+      font-size : 20px;
+      color : #565656;
+      position: relative;
+    }
+
+    .main-div {
+      width:100%;
+      text-align : center;
+      margin : 10px;
+    }
+
+    .wrap-div-main2{
+      position: fixed;
+      top:17%;
+      left:43%;
+    }
+
+    .div-main2 {
+      width: 435px;
+      height: 400px;
+      background-color: white;
+      border: 4px solid #FFC107;
+      border-radius: 5px 5px 5px 5px;
+    }
+
+    #qna-div {
+      width:100%;
+      margin : 10px;
+      text-align: center;
+    }
+
+    input[type="number"] {
+      width : 60px;
+    }
+
+    input[type="number"]::-webkit-outer-spin-button,
+    input[type="number"]::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+
+    #cartBtn {
+      float:left;
+      height:50px;
+      width:49%;
+      margin-right:5px;
+      border:1px solid black;
+    }
+
+    #buyBtn {
+      float:left;
+      height:50px;
+      width:49%;
+      margin-right:5px;
+      border:1px solid black;
+    }
+
+    .wrap-div-main{
+      position: fixed;
+      top:30%;
+      left:43%;
+    }
+
+    .div-main {
+      width: 435px;
+      height: 260px;
+      background-color: white;
+      border: 4px solid #FFC107;
+      border-radius: 5px 5px 5px 5px;
+    }
+
+    .textarea {
+      border: 1px solid #CED4DA;
+      border-radius: 5px 5px 5px 5px;
+      width:410px;
+      height:100px;
+      resize:none;
+    }
+
+    .deleteQna {
+      cursor : pointer;
+      color : #565656;
+    }
+  </style>
+  <script th:inline="javascript">
+    var header = $("meta[name='_csrf_header']").attr("content");
+    var token = $("meta[name='_csrf']").attr("content");
+    var qnaPage = 0;
+    var user = [[${user}]];
+    var item = [[${item}]];
+
+    $(document).ready(function() {
+      fn_appr();
+
+      $('#addQna').click(function() {
+        $('.wrap-div').removeClass('display-none');
+      });
+
+      $('#closeQna').click(function() {
+        fn_closeQna();
+      });
+
+      $('#saveQna').click(function() {
+        fn_saveQna();
+      });
+
+      $('#closeQna2').click(function() {
+        fn_closeQna2();
+      });
+    });
+
+    // 화면 전체 조회
+    function fn_appr() {
+      $.ajax({
+          type: "GET"
+        , url : "/api/v1/buy/"+ user + "/" + item
+        , dataType: "json"
+        , success : function(data) {
+          let str = '';
+
+          if(data.resultCode == 200) {
+            let expln = data.result.item.selExpln;
+
+            $('#itemImg').attr('src', '/files/item/'+data.result.item.selMiniImg);
+
+            if(data.result.item.selStockCount < 1) {
+              str += '<div style="position:absolute; width:100%; height:100%; opacity: 0.7;">';
+              str += '  <img src="/img/soldout.png" width="100%" height="100%">';
+              str += '</div>';
+            }
+
+            str += '<h2 style="font-weight:bold; color:black;">'+ data.result.item.selItemName +'</h2>';
+
+            var starPoints = data.result.item.selStarPointAvg;
+
+            if(Number.isNaN(starPoints)) {
+              starPoints = 0;
+            }
+
+            if(starPoints == 0) {
+                str += '    <img width="20px" height="20px" src="/img/star-white.png">';
+            } else {
+                for(var j=0; j<Math.floor(starPoints); j++) {
+                    str += '    <img width="20px" height="20px" src="/img/star.png">';
+                }
+
+                for(var j=0; j<starPoints % 1; j++) {
+                    str += '    <img width="20px" height="20px" src="/img/star-half.png">';
+                }
+            }
+
+            str += '<hr class="mb-4">';
+            str += '<table style="border-collapse: separate; border-spacing: 0 10px;">';
+            str += '  <tr>';
+            str += '    <td style="width:150px;">배송비</td>';
+            str += '    <td>'+ data.result.item.selDeilPrice +'</td>';
+            str += '  </tr>';
+            str += '  <tr>';
+            str += '    <td>상품코드</td>';
+            str += '    <td>'+ data.result.item.selItemId +'</td>';
+            str += '  </tr>';
+            str += '  <tr>';
+            str += '    <td>구매수량</td>';
+            str += '    <td>';
+            str += '      <button id="minus" class="btn btn-warning" style="float:left; margin-right:1px;">－</button>';
+            str += '      <input id="cnt" class="form-control" style="float:left;" type="number" value="1">';
+            str += '      <button id="plus" class="btn btn-warning" style="float:left; margin-left:1px;">＋</button>';
+            str += '    </td>';
+            str += '  </tr>';
+            str += '  <tr>';
+            str += '    <td>총 상품금액</td>';
+            str += '    <td id="price" style="font-weight:bold;" data-price="'+ data.result.item.selItemPrice +'">';
+            str += data.result.item.selItemPrice;
+            str += '    </td>';
+            str += '  </tr>';
+            str += '  <tr>';
+            str += '    <td>';
+            str += '      <input type="hidden" id="itemUser" value="'+ data.result.item.user +'">';
+            str += '      <input type="hidden" id="itemId" value="'+ data.result.item.selItemId +'">';
+            str += '    </td>';
+            str += '  </tr>';
+            str += '</table>';
+            str += '<button class="btn btn-light" id="cartBtn">장바구니</button>';
+            str += '<button class="btn btn-warning" id="buyBtn">구매하기</button>';
+
+            $('.right-div').html(str);
+
+            str = '<img src="'+ '/files/item/'+ data.result.item.selMainImg +'">';
+            str += '<div style="width:100%; text-align:left; color:#565656;">';
+            str += expln.replace(/(?:\r\n|\r|\n)/g, '<br>');
+            str += '</div>';
+
+
+            $('.main-div').html(str);
+
+            if(data.result.useritemqna != null) {
+              fn_setQna(data.result.useritemqna, 0);
+            } else {
+              str = '<img src="/img/nodata.png">';
+            }
+
+            if(data.result.review != null) {
+              fn_setReview(data.result.review, 0);
+            } else {
+              str = '<img src="/img/nodata.png">';
+            }
+
+            $('#cnt').change(function() {
+              fn_price($(this).val(), 'input');
+            });
+
+            $('#minus').click(function() {
+              fn_price(1, 'minus');
+            });
+
+            $('#plus').click(function() {
+              fn_price(1, 'plus');
+            });
+
+            $('#cartBtn').click(function() {
+              let item = {
+                  "user" : $('#itemUser').val()
+                , "selItemId" : $('#itemId').val()
+              }
+
+              let userCart = {
+                  "user" : $('#login-user-id').val()
+                , "item" : item
+                , "cartCnt" : $('#cnt').val()
+              }
+
+              $.ajax({
+                  type: "POST"
+                , url : "/api/v1/usercart"
+                , beforeSend: function(xhr){
+                  $('.wrap-loading').removeClass('display-none');
+                  xhr.setRequestHeader(header, token);
+                }
+                , contentType : "application/json"
+                , data : JSON.stringify(userCart)
+                , success : function(data) {
+                  if(data.resultCode == 201) {
+                    alert('장바구니에 추가되었습니다');
+                  } else {
+                    // 데이터 중복
+                    if(data.divisionCode == 'G014') {
+                     alert(data.reason);
+                    } else {
+                     alert('장바구니에 추가가 실패되었습니다');
+                    }
+                  }
+                }
+                , complete:function(){
+                    $('.wrap-loading').addClass('display-none');
+                }
+                , error : function(e) {
+                  alert('장바구니에 추가가 실패되었습니다');
+                }
+              });
+            });
+
+            $('#buyBtn').click(function() {
+              location.href = '/pay?store=' + $('#itemUser').val() + '!' + '&item=' + $('#itemId').val() + '!' + '&cnt=' + $('#cnt').val() + '!';
+            });
+          } else {
+            if(data.divisionCode == 'G013') {
+              alert(data.resultMsg);
+            } else {
+              alert('조회가 실패하였습니다');
+            }
+          }
+        }
+        , beforeSend:function(){
+            $('.wrap-loading').removeClass('display-none');
+        }
+        , complete:function(){
+            $('.wrap-loading').addClass('display-none');
+        }
+        , error : function(e) {
+          alert('조회가 실패하였습니다');
+        }
+      });
+    }
+
+    function fn_price(cnt, type) {
+      let price = $('#price').data('price');
+      let totCnt = Number($('#cnt').val());
+
+      if(type == 'input') {
+        $('#price').html(price * cnt);
+      } else if(type == 'minus') {
+        $('#cnt').val(totCnt - cnt);
+        $('#price').html(price * $('#cnt').val());
+      } else {
+        $('#cnt').val(totCnt + cnt);
+        $('#price').html(price * $('#cnt').val());
+      }
+
+      if($('#cnt').val() < 1) {
+        alert('1이상의 수량을 입력해주세요');
+        $('#cnt').val(1)
+        $('#price').html(price);
+      }
+    }
+
+    function fn_closeQna() {
+      $('.wrap-div').addClass('display-none');
+      $('#itemQnaQuestion').val('');
+    }
+
+    function fn_saveQna() {
+      let userItemQna = {
+          "store" : $('#itemUser').val()
+        , "item" : $('#itemId').val()
+        , "user" : $('#login-user-id').val()
+        , "itemQnaQuestion" : $('#itemQnaQuestion').val()
+        , "itemQnaAnswerYn" : 'N'
+      };
+
+      if(fn_checkBlank(userItemQna.itemQnaQuestion)) {
+        alert('문의내용을 입력해주세요');
+        $('#itemQnaQuestion').focus();
+        return false;
+      }
+
+      $.ajax({
+          type: "POST"
+        , url : "/api/v1/useritemqna"
+        , beforeSend: function(xhr){
+          $('.wrap-loading').removeClass('display-none');
+          xhr.setRequestHeader(header, token);
+        }
+        , contentType : "application/json"
+        , data : JSON.stringify(userItemQna)
+        , success : function(data) {
+          if(data.resultCode == 201 || data.resultCode == 204) {
+            alert('저장이 완료되었습니다');
+            fn_closeQna();
+            fn_apprQna(qnaPage);
+          } else {
+            // 데이터 중복
+            if(data.divisionCode == 'G014') {
+             alert(data.reason);
+            } else {
+             alert('저장이 실패했습니다');
+            }
+          }
+        }
+        , complete:function(){
+            $('.wrap-loading').addClass('display-none');
+        }
+        , error : function(e) {
+          alert('저장이 실패했습니다');
+        }
+      });
+    }
+
+    function fn_apprQna(page) {
+      let pageNum = fn_checkBlank(page) ? 0 : page;
+
+      $.ajax({
+          type: "GET"
+        , url : "/api/v1/useritemqna/list/" + user + "/" + item + "/" + pageNum
+        , dataType: "json"
+        , success : function(data) {
+          if(data.resultCode == 200) {
+            fn_setQna(data.result, page);
+          }
+        }
+        , beforeSend:function(){
+            $('.wrap-loading').removeClass('display-none');
+        }
+        , complete:function(){
+            $('.wrap-loading').addClass('display-none');
+        }
+        , error : function(e) {
+          alert('조회가 실패하였습니다');
+        }
+      });
+    }
+
+    function fn_apprReview(page) {
+      let pageNum = fn_checkBlank(page) ? 0 : page;
+
+      $.ajax({
+          type: "GET"
+        , url : "/api/v1/itemreview/" + user + "/" + item + "/" + pageNum
+        , dataType: "json"
+        , success : function(data) {
+          if(data.resultCode == 200) {
+            fn_setReview(data.result, page);
+          }
+        }
+        , beforeSend:function(){
+            $('.wrap-loading').removeClass('display-none');
+        }
+        , complete:function(){
+            $('.wrap-loading').addClass('display-none');
+        }
+        , error : function(e) {
+          alert('조회가 실패하였습니다');
+        }
+      });
+    }
+
+    function fn_setQna(data, pageNum) {
+      let pageShow = document.getElementById('qna-div');
+      let str = '';
+
+      pageShow.innerHTML = '';
+
+      let total = data.totalElements / 10;
+      let start = Math.floor(pageNum / 10) * 10;
+      let end = total < (10 * (Math.floor(pageNum / 10)+1))? total : total - (total - (10 * (Math.floor(pageNum / 10)+1)));
+
+      str += '<div style="width:100%; margin : 0 auto;">';
+      str += '<table class="myTable">';
+      str += '  <thead>';
+      str += '    <tr>';
+      str += '      <th style="width:10%;">번호</th>';
+      str += '      <th style="width:10%;">답변상태</th>';
+      str += '      <th style="width:70%;">문의내용</th>';
+      str += '      <th style="width:10%;"></th>';
+      str += '    </tr>';
+      str += '  </thead>';
+      str += '  <tbody>';
+
+      for(let i=0; i < data.content.length; i++) {
+        str += '<tr>';
+        str += '  <td>';
+        str += (pageNum*10)+(i+1);
+        str += '  </td>';
+        str += '  <td>';
+
+        if(data.content[i].itemQnaAnswerYn == 'Y') {
+          str += '답변';
+        } else {
+          str += '미답변';
+        }
+
+        str += '  </td>';
+        str += '  <td class="data" style="text-align:left;"';
+        str += '  data-store="' + data.content[i].store +'"';
+        str += '  data-item="' + data.content[i].item +'"';
+        str += '  data-user="' + data.content[i].user +'"';
+        str += '  data-itemQnaId="' + data.content[i].itemQnaId +'"';
+        str += '  data-itemQnaQuestion="' + data.content[i].itemQnaQuestion +'"';
+        str += '  data-itemQnaAnswer="' + data.content[i].itemQnaAnswer +'"';
+        str += '  data-itemQnaAnswerYn="' + data.content[i].itemQnaAnswerYn +'"';
+        str += '  > '+ data.content[i].itemQnaQuestion +'</td>';
+        str += '  <td>';
+
+        if(data.content[i].user == $('#login-user-id').val() &&
+        data.content[i].itemQnaAnswerYn != 'Y') {
+          str += '    <a class="deleteQna">삭제</a>';
+        }
+
+        str += '  </td>';
+        str += '</tr>';
+      }
+
+      str += '  </tbody>';
+      str += '</table>';
+      str += '</div>';
+
+      str += '<div class="page_wrap"> ';
+      str += '  <div class="page_nation"> ';
+      str += '    <a class="arrow pprev" onclick=\"fn_apprQna(0);\">First</a> ';
+
+      if(pageNum-1 < 0) {
+        str += '    <a class="arrow prev" onclick=\"alert(\'처음 페이지 입니다.\');">&lt;</a> ';
+      } else {
+        str += '    <a class="arrow prev" onclick=\"fn_apprQna(' + (pageNum-1) + ');\">&lt;</a> ';
+      }
+
+      for(var i=start; i<end; i++) {
+        if(pageNum == i) {
+          str += '<a class=\"active\" onclick=\"fn_apprQna(' + i + ');\">' + (i+1) + '</a>';
+        } else {
+          str += '<a onclick=\"fn_apprQna(' + i + ');\">' + (i+1) + '</a>';
+        }
+      }
+
+      if(pageNum+1 >= total) {
+        str += '    <a class="arrow next" onclick=\"alert(\'마지막 페이지 입니다.\');">&gt;</a> ';
+      } else {
+        str += '    <a class="arrow next" onclick=\"fn_apprQna(' + (pageNum+1) + ');\">&gt;</a> ';
+      }
+
+      if(total - Math.floor(total) == 0) {
+        total -= 1;
+      }
+
+      str += '    <a class="arrow nnext" onclick=\"fn_apprQna(' + Math.floor(total) + ');\">Last</a> ';
+      str += '  </div> ';
+      str += '</div> ';
+
+      pageShow.innerHTML = str;
+
+      qnaPage = pageNum;
+
+      $('.data').off('click');
+      $('.deleteQna').off('click');
+
+      // 행 선택
+      $('.data').click(function() {
+        $('.wrap-div2').removeClass('display-none');
+
+        $('#itemQnaQuestion2').val($(this).data('itemqnaquestion'));
+        $('#itemQnaAnswer2').val($(this).data('itemqnaanswer'));
+      });
+
+      // 삭제
+      $('.deleteQna').click(function() {
+        let useritemQna = {
+            "store" : $(this).parent().siblings('.data').data('store')
+          , "item" : $(this).parent().siblings('.data').data('item')
+          , "user" : $(this).parent().siblings('.data').data('user')
+          , "itemQnaId" : $(this).parent().siblings('.data').data('itemqnaid')
+        };
+
+        if(confirm('삭제하시겠습니까?')) {
+          $.ajax({
+              type: "DELETE"
+            , url : "/api/v1/useritemqna"
+            , beforeSend: function(xhr){
+              $('.wrap-loading').removeClass('display-none');
+              xhr.setRequestHeader(header, token);
+            }
+            , contentType : "application/json"
+            , data : JSON.stringify(useritemQna)
+            , success : function(data) {
+              if(data.resultCode == 200) {
+                alert('삭제가 완료되었습니다');
+                fn_apprQna(qnaPage);
+              } else {
+                alert('삭제가 실패했습니다');
+              }
+            }
+            , complete:function(){
+                $('.wrap-loading').addClass('display-none');
+            }
+            , error : function(e) {
+              alert('삭제가 실패했습니다');
+            }
+          });
+        }
+      });
+    }
+
+    function fn_setReview(data, pageNum) {
+      let pageShow = document.getElementById('review-div');
+      let str = '';
+
+      pageShow.innerHTML = '';
+
+      let total = data.totalElements / 10;
+      let start = Math.floor(pageNum / 10) * 10;
+      let end = total < (10 * (Math.floor(pageNum / 10)+1))? total : total - (total - (10 * (Math.floor(pageNum / 10)+1)));
+
+      str += '<div style="width:100%; margin : 0 auto;">';
+      str += '<table class="myTable">';
+      str += '  <thead>';
+      str += '    <tr>';
+      str += '      <th style="width:10%;">번호</th>';
+      str += '      <th style="width:25%;">별점</th>';
+      str += '      <th style="width:55%;">내용</th>';
+      str += '    </tr>';
+      str += '  </thead>';
+      str += '  <tbody>';
+
+      for(let i=0; i < data.content.length; i++) {
+        str += '<tr>';
+        str += '  <td>';
+        str += (pageNum*10)+(i+1);
+        str += '  </td>';
+        str += '  <td>';
+
+        for(var s=0; s<data.content[i].reviewStarPoint; s++) {
+          str += '<img width="10px" height="10px" src="/img/star.png">';
+        }
+
+        str += '  </td>';
+        str += '  <td class="data" style="text-align:left;"';
+        str += '  > '+ data.content[i].reviewText +'</td>';
+        str += '</tr>';
+      }
+
+      str += '  </tbody>';
+      str += '</table>';
+      str += '</div>';
+
+      str += '<div class="page_wrap"> ';
+      str += '  <div class="page_nation"> ';
+      str += '    <a class="arrow pprev" onclick=\"fn_apprReview(0);\">First</a> ';
+
+      if(pageNum-1 < 0) {
+        str += '    <a class="arrow prev" onclick=\"alert(\'처음 페이지 입니다.\');">&lt;</a> ';
+      } else {
+        str += '    <a class="arrow prev" onclick=\"fn_apprReview(' + (pageNum-1) + ');\">&lt;</a> ';
+      }
+
+      for(var i=start; i<end; i++) {
+        if(pageNum == i) {
+          str += '<a class=\"active\" onclick=\"fn_apprReview(' + i + ');\">' + (i+1) + '</a>';
+        } else {
+          str += '<a onclick=\"fn_apprReview(' + i + ');\">' + (i+1) + '</a>';
+        }
+      }
+
+      if(pageNum+1 >= total) {
+        str += '    <a class="arrow next" onclick=\"alert(\'마지막 페이지 입니다.\');">&gt;</a> ';
+      } else {
+        str += '    <a class="arrow next" onclick=\"fn_apprReview(' + (pageNum+1) + ');\">&gt;</a> ';
+      }
+
+      if(total - Math.floor(total) == 0) {
+        total -= 1;
+      }
+
+      str += '    <a class="arrow nnext" onclick=\"fn_apprReview(' + Math.floor(total) + ');\">Last</a> ';
+      str += '  </div> ';
+      str += '</div> ';
+
+      pageShow.innerHTML = str;
+    }
+
+    function fn_closeQna2() {
+      $('.wrap-div2').addClass('display-none');
+      $('#itemQnaQuestion2').val('');
+      $('#itemQnaAnswer2').val('');
+    }
+  </script>
+</head>
+<body>
+  <th:block th:replace="fragment/header :: headerFragment"></th:block>
+  <div class="container">
+    <div class="input-form-backgroud row">
+      <div class="input-form col-md-12 mx-auto">
+        <div class="left-div inline-block">
+          <img id="itemImg" style="width:100%; height:100%;">
+        </div>
+        <div class="right-div inline-block"></div>
+
+        <div style="margin-top:20px;">
+          <h4>상품상세정보</h4>
+          <hr class="mb-4">
+        </div>
+        <div class="main-div"></div>
+
+        <div style="margin-top:20px;">
+          <h4>상품문의</h4>
+          <hr class="mb-4">
+          <th:block sec:authorize="isAuthenticated()">
+            <button id="addQna" class="btn btn-warning">문의하기</button>
+          </th:block>
+        </div>
+        <div id="qna-div"></div>
+
+        <div style="margin-top:20px;">
+          <h4>리뷰</h4>
+          <hr class="mb-4">
+        </div>
+        <div id="review-div"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="wrap-div display-none">
+    <div class="wrap-div-main">
+      <div class="div-main">
+        <h4 class="mb-3 margin-left margin-top">상품문의</h4>
+        <div class="col-md-6 mb-3 margin-left">
+          <label for="itemQnaQuestion">상품문의</label>
+          <textarea id="itemQnaQuestion" class="textarea"></textarea>
+        </div>
+        <div class="col-md-5 mb-3 margin-left">
+          <button type="button" class="btn btn-warning" id="closeQna">닫기</button>
+          <button type="button" class="btn btn-warning" id="saveQna">저장</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="wrap-div2 display-none">
+    <div class="wrap-div-main2">
+      <div class="div-main2">
+        <h4 class="mb-3 margin-left margin-top">문의하기</h4>
+        <div class="col-md-6 mb-3 margin-left">
+          <label for="itemQnaQuestion2">문의내용</label>
+          <textarea id="itemQnaQuestion2" class="textarea" disabled></textarea>
+        </div>
+        <div class="col-md-6 mb-3 margin-left">
+          <label for="itemQnaAnswer2">답변</label>
+          <textarea id="itemQnaAnswer2" class="textarea" disabled></textarea>
+        </div>
+        <div class="col-md-5 mb-3 margin-left">
+          <button type="button" class="btn btn-warning" id="closeQna2">닫기</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="wrap-loading display-none">
+    <div><img src="/img/loading.gif"></div>
+  </div>
+  <th:block th:replace="fragment/footer :: footerFragment"></th:block>
+</body>
+</html>

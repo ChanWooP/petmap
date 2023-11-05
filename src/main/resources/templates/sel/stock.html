@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en"
+      xmlns:th="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="_csrf" th:content="${_csrf.token}"/>
+  <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+  <title>재고 관리</title>
+  <link href="/css/bootstrap.min.css" rel="stylesheet">
+  <link href="/css/style.css" rel="stylesheet">
+  <script src="/js/bootstrap.min.js"></script>
+  <script src="/js/script.js"></script>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+  <style>
+    body {
+      min-height: 100vh;
+    }
+
+    .input-form {
+      max-width: 1000px;
+
+      margin-top: 80px;
+      margin-bottom: 80px;
+      padding: 32px;
+
+      background: #fff;
+      -webkit-border-radius: 10px;
+      -moz-border-radius: 10px;
+      border-radius: 10px;
+      -webkit-box-shadow: 0 8px 20px 0 rgba(0, 0, 0, 0.15);
+      -moz-box-shadow: 0 8px 20px 0 rgba(0, 0, 0, 0.15);
+      box-shadow: 0 8px 20px 0 rgba(0, 0, 0, 0.15)
+    }
+
+    .wrap-div-main{
+      position: fixed;
+      top:40%;
+      left:35%;
+    }
+
+    .div-pop {
+      width: 300px;
+      height: 205px;
+      background-color: white;
+      border: 4px solid #FFC107;
+      border-radius: 5px 5px 5px 5px;
+    }
+
+    .margin-left {
+      margin-left : 10px;
+    }
+
+    .margin-right {
+      margin-right : 10px;
+    }
+
+    .div-pop-view {
+      border-radius: 5px 5px 5px 5px;
+      background : #FFC107;
+      box-shadow : 5px 5px 5px 5px gray
+    }
+  </style>
+  <script type="text/javascript">
+    var header = $("meta[name='_csrf_header']").attr("content");
+    var token = $("meta[name='_csrf']").attr("content");
+    var pages = 0;
+
+    $(document).ready(function(){
+      $('#frDt').val(new Date().toISOString().substring(0, 10));
+      $('#toDt').val(new Date().toISOString().substring(0, 10));
+      fn_apprItem();
+
+      // 상품 조회 버튼
+      $('#btnAppr').click(function() {
+        if(fn_checkBlank($("#itemSelect").val())) {
+          alert('상품을 선택해주세요');
+          $("#itemSelect").focus();
+          return false;
+        }
+        fn_appr();
+      });
+
+      // 재고 추가 버튼
+      $('#btnAdd').click(function() {
+        if(fn_checkBlank($("#itemSelect").val())) {
+          alert('상품을 선택해주세요');
+          $("#itemSelect").focus();
+          return false;
+        }
+
+        $('.wrap-div').removeClass('display-none');
+      });
+
+      // 닫기 버튼
+      $('#btnClose').click(function() {
+        fn_close()
+      });
+
+      // 저장 버튼
+      $('#btnSave').click(function() {
+        fn_save();
+      });
+    });
+
+    // 닫기
+    function fn_close() {
+      $('.wrap-div').addClass('display-none');
+      $('#selStockCount').val('');
+    }
+
+    // 저장
+    function fn_save() {
+      let cnt = $('#selStockCount').val();
+      let item = {
+          "user" : $('#login-user-id').val()
+        , "selItemId" : $('#itemSelect').val()
+      }
+      let stock = {
+          "itemDto" : item
+        , "stockQty" : cnt
+        , "stockExpln" : '재고 수정'
+      }
+
+      if(fn_checkBlank(cnt) || cnt == 0) {
+        alert('수량을 입력해주세요');
+        $('#selStockCount').focus();
+        return false;
+      }
+
+      $.ajax({
+          type: "POST"
+        , url : "/api/v1/sel/stock"
+        , beforeSend: function(xhr){
+          $('.wrap-loading').removeClass('display-none');
+          xhr.setRequestHeader(header, token);
+        }
+        , contentType : "application/json"
+        , data : JSON.stringify(stock)
+        , success : function(data) {
+          if(data.resultCode == 201) {
+            alert('저장이 완료되었습니다');
+            $('.wrap-div').addClass('display-none');
+            fn_appr();
+          } else {
+            alert('저장이 실패하였습니다');
+          }
+        }
+        , complete:function(){
+            $('.wrap-loading').addClass('display-none');
+        }
+        , error : function(e) {
+          alert('저장이 실패하였습니다');
+        }
+      });
+    }
+
+    // 조회
+    function fn_appr(page) {
+      let pageNum = fn_checkBlank(page) ? 0 : page;
+      let pageShow = document.getElementById('page');
+      
+      if($('#frDt').val() > $('#toDt').val()) {
+        alert('조회 시작일자는 조회 종료일자보다 느릴 수 없습니다');
+        frDt.focus();
+        return false;
+      }
+      
+      $.ajax({
+          type: "GET"
+        , url : "/api/v1/sel/stock/" + $('#login-user-id').val() + "/" + $("#itemSelect").val()
+                                     + "/" + $('#frDt').val().replace(/-/gi, "") + "/" + $('#toDt').val().replace(/-/gi, "")
+                                     + "/" + pageNum
+        , dataType: "json"
+        , success : function(data) {
+          if(data.resultCode == 200) {
+              let str = '';
+              let num = '';
+              let color = '';
+              let date = '';
+
+              let total = data.result.stock.totalElements / 10;
+              let start = Math.floor(pageNum / 10) * 10;
+              let end = total < (10 * (Math.floor(pageNum / 10)+1))? total : total - (total - (10 * (Math.floor(pageNum / 10)+1)));
+
+              str += '<h4 class="mb-3">현재 재고 : ' + data.result.item.selStockCount + ' 개</h4>';
+              str += '<hr class="mb-4" style="border-top:5px solid">';
+
+              for(let i=0; i < data.result.stock.content.length; i++) {
+                if(Number(data.result.stock.content[i].stockQty) > 0) {
+                  num = "+" + data.result.stock.content[i].stockQty;
+                  color = 'color:red;';
+                } else {
+                  num = data.result.stock.content[i].stockQty;
+                  color = 'color:blue;';
+                }
+                date = data.result.stock.content[i].stockDt;
+                str += '<div>';
+                str += '  <div style="width:100%;">';
+                str += '    <h5>' + data.result.stock.content[i].stockExpln + '</h5>';
+                str += '  </div>';
+                str += '  <div style="width:100%">';
+                str += '    <div class="inline-block" style="width:49%; text-align:left; color:gray;">';
+                str += '      <h5>' + date.substr(0,4) + '-' + date.substr(4,2) + '-' + date.substr(6,2) + '</h5>';
+                str += '    </div>';
+                str += '    <div class="inline-block" style="width:50%; text-align:right; ' + color + '">';
+                str += '      <h5>' + num + '</h5>';
+                str += '    </div>';
+                str += '  </div>';
+                str += '</div>';
+                str += '<hr class="mb4">';
+              }
+
+              str += '<div class="page_wrap"> ';
+              str += '  <div class="page_nation"> ';
+              str += '    <a class="arrow pprev" onclick=\"fn_appr(0);\">First</a> ';
+
+              if(pageNum-1 < 0) {
+                str += '    <a class="arrow prev" onclick=\"alert(\'처음 페이지 입니다.\');">&lt;</a> ';
+              } else {
+                str += '    <a class="arrow prev" onclick=\"fn_appr(' + (pageNum-1) + ');\">&lt;</a> ';
+              }
+
+              for(var i=start; i<end; i++) {
+                if(pageNum == i) {
+                  str += '<a class=\"active\" onclick=\"fn_appr(' + i + ');\">' + (i+1) + '</a>';
+                } else {
+                  str += '<a onclick=\"fn_appr(' + i + ');\">' + (i+1) + '</a>';
+                }
+              }
+
+              if(pageNum+1 > total) {
+                str += '    <a class="arrow next" onclick=\"alert(\'마지막 페이지 입니다.\');">&gt;</a> ';
+              } else {
+                str += '    <a class="arrow next" onclick=\"fn_appr(' + (pageNum+1) + ');\">&gt;</a> ';
+              }
+
+              str += '    <a class="arrow nnext" onclick=\"fn_appr(' + Math.floor(total) + ');\">Last</a> ';
+              str += '  </div> ';
+              str += '</div> ';
+
+              pageShow.innerHTML = str;
+          } else {
+            if(data.divisionCode == 'G013') {
+              alert(data.resultMsg);
+            } else {
+              alert('조회가 실패하였습니다');
+            }
+          }
+        }
+        , beforeSend:function(){
+            $('.wrap-loading').removeClass('display-none');
+        }
+        , complete:function(){
+            $('.wrap-loading').addClass('display-none');
+        }
+        , error : function(e) {
+          alert('조회가 실패하였습니다');
+        }
+      });
+    }
+
+    // 상품 조회
+    function fn_apprItem() {
+      $.ajax({
+          type: "GET"
+        , url : "/api/v1/sel/item/all/" + $('#login-user-id').val()
+        , dataType: "json"
+        , success : function(data) {
+          let str = '';
+
+          if(data.resultCode == 200) {
+              $("#itemSelect").append('<option value="">'+ '- 선택 -' +'</option>');
+              for(let i=0; i < data.result.length; i++) {
+                $("#itemSelect").append('<option value="'+ data.result[i].selItemId +'\">'+ data.result[i].selItemId + ' / ' + data.result[i].selItemName +'</option>');
+              }
+          } else {
+            if(data.divisionCode == 'G013') {
+              alert(data.resultMsg);
+            } else {
+              alert('조회가 실패하였습니다');
+            }
+          }
+        }
+        , beforeSend:function(){
+            $('.wrap-loading').removeClass('display-none');
+        }
+        , complete:function(){
+            $('.wrap-loading').addClass('display-none');
+        }
+        , error : function(e) {
+          alert('조회가 실패하였습니다');
+        }
+      });
+    }
+
+  </script>
+</head>
+<body>
+  <th:block th:replace="fragment/header :: headerFragment"></th:block>
+  <div class="container">
+    <div class="input-form-backgroud row">
+      <div class="input-form col-md-12 mx-auto">
+        <h4 class="mb-3">재고 관리</h4>
+        <div class="row">
+          <div class="col-md-4 mb-3">
+            <label for="itemSelect">상품코드/명</label>
+            <select class="form-select" id="itemSelect"></select>
+          </div>
+          <div class="col-md-4 mb-3">
+            <label for="frDt">시작일자</label>
+            <input type="date" class="form-control" id="frDt">
+          </div>
+          <div class="col-md-4 mb-3">
+            <label for="toDt">종료일자</label>
+            <input type="date" class="form-control" id="toDt">
+          </div>
+        </div>
+        <button type="button" class="btn btn-warning btn-select" id="btnAppr">재고 조회</button>
+        <button type="button" class="btn btn-warning btn-select" id="btnAdd">재고 수정</button>
+        <hr class="mb-4">
+        <div id="page"></div>
+      </div>
+    </div>
+  </div>
+
+
+
+  <div class="wrap-div display-none">
+    <div class="wrap-div-main">
+      <div class="div-pop">
+        <input type="hidden" id="method">
+        <h4 class="mb-3 margin-left margin-top">재고 추가 및 삭제</h4>
+
+        <div class="mb-3 margin-left margin-right">
+          <label for="selStockCount">재고 추가 및 삭제 수량</label>
+          <input type="number" class="form-control" id="selStockCount">
+        </div>
+
+        <div class="col-md-5 mb-3 margin-left">
+          <button type="button" class="btn btn-warning" id="btnClose">닫기</button>
+          <button type="button" class="btn btn-warning" id="btnSave">저장</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="wrap-loading display-none">
+    <div><img src="/img/loading.gif"></div>
+  </div>
+  <th:block th:replace="fragment/footer :: footerFragment"></th:block>
+</body>
+</html>

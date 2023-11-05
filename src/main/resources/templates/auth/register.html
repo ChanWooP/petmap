@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en"
+      xmlns:th="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="_csrf" th:content="${_csrf.token}"/>
+  <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+  <title>회원가입</title>
+  <link href="/css/bootstrap.min.css" rel="stylesheet">
+  <link href="/css/style.css" rel="stylesheet">
+  <script src="/js/bootstrap.min.js"></script>
+  <script src="/js/script.js"></script>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+  <script src="//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"></script>
+  <style>
+    body {
+      min-height: 100vh;
+    }
+
+    .input-form {
+      max-width: 680px;
+
+      margin-top: 80px;
+      margin-bottom: 80px;
+      padding: 32px;
+
+      background: #fff;
+      -webkit-border-radius: 10px;
+      -moz-border-radius: 10px;
+      border-radius: 10px;
+      -webkit-box-shadow: 0 8px 20px 0 rgba(0, 0, 0, 0.15);
+      -moz-box-shadow: 0 8px 20px 0 rgba(0, 0, 0, 0.15);
+      box-shadow: 0 8px 20px 0 rgba(0, 0, 0, 0.15)
+    }
+
+    .inline-block {
+      display: inline-block;
+    }
+
+    .center {
+      display: flex;
+      align-items: center;
+    }
+
+    #bizDiv, #email-check-btn, #emailCheckDiv {
+      display : none;
+    }
+  </style>
+  <script>
+    var header = $("meta[name='_csrf_header']").attr("content");
+    var token = $("meta[name='_csrf']").attr("content");
+
+    // 주소
+    function fn_addressSearch() {
+        new daum.Postcode({
+            oncomplete: function(data) {
+                // 팝업에서 검색결과 항목을 클릭했을때 실행할 코드를 작성하는 부분.
+
+                // 각 주소의 노출 규칙에 따라 주소를 조합한다.
+                // 내려오는 변수가 값이 없는 경우엔 공백('')값을 가지므로, 이를 참고하여 분기 한다.
+                var addr = ''; // 주소 변수
+                var extraAddr = ''; // 참고항목 변수
+
+                //사용자가 선택한 주소 타입에 따라 해당 주소 값을 가져온다.
+                if (data.userSelectedType === 'R') { // 사용자가 도로명 주소를 선택했을 경우
+                    addr = data.roadAddress;
+                } else { // 사용자가 지번 주소를 선택했을 경우(J)
+                    addr = data.jibunAddress;
+                }
+
+                // 사용자가 선택한 주소가 도로명 타입일때 참고항목을 조합한다.
+                if(data.userSelectedType === 'R'){
+                    // 법정동명이 있을 경우 추가한다. (법정리는 제외)
+                    // 법정동의 경우 마지막 문자가 "동/로/가"로 끝난다.
+                    if(data.bname !== '' && /[동|로|가]$/g.test(data.bname)){
+                        extraAddr += data.bname;
+                    }
+                    // 건물명이 있고, 공동주택일 경우 추가한다.
+                    if(data.buildingName !== '' && data.apartment === 'Y'){
+                        extraAddr += (extraAddr !== '' ? ', ' + data.buildingName : data.buildingName);
+                    }
+                    // 표시할 참고항목이 있을 경우, 괄호까지 추가한 최종 문자열을 만든다.
+                    if(extraAddr !== ''){
+                        extraAddr = ' (' + extraAddr + ')';
+                    }
+                    // 조합된 참고항목을 해당 필드에 넣는다.
+                    document.getElementById("address2").value = extraAddr;
+
+                } else {
+                    document.getElementById("address2").value = '';
+                }
+
+                // 우편번호와 주소 정보를 해당 필드에 넣는다.
+                document.getElementById('zipCode').value = data.zonecode;
+                document.getElementById("address1").value = addr;
+                // 커서를 상세주소 필드로 이동한다.
+                document.getElementById("address2").focus();
+            }
+        }).open();
+    }
+
+    // 중복 확인
+    function fn_overlap(type) {
+      let rtnDivisionCode = null;
+      let obj = document.getElementById(type);
+      let emailCheckBtn = document.getElementById('email-check-btn');
+      let idOverlapBtn = document.getElementById('idOverlapBtn');
+
+      if(type == 'id') {
+        if(fn_checkBlank(obj.value)) {
+          alert('아이디를 입력해주세요');
+          obj.focus();
+          return false;
+        } else if(fn_registerValidationCheck('id', obj.value, 4, 20)) {
+          alert('아이디는 영문 대소문자, 숫자 4~20 자리로 입력해야합니다');
+          return false;
+        }
+      } else {
+        if(fn_checkBlank(obj.value)) {
+          alert('이메일을 입력해주세요');
+          obj.focus();
+          return false;
+        } else if(fn_registerValidationCheck('email', obj.value)) {
+          alert('이메일은 "example@naver.com" 과 같이 입력해야합니다');
+          obj.focus();
+          return false;
+        }
+      }
+
+      $.ajax({
+          type: "GET"
+        , url : "/api/v1/user/check/" + type + "/" + obj.value
+        , dataType: "json"
+        , success : function(data) {
+
+          if(data.resultCode == 200) {
+            if(data.result) {
+              alert('중복되었습니다');
+            } else {
+              alert('사용가능합니다');
+              obj.disabled = true;
+            }
+
+            if(type == 'email') {
+              emailCheckBtn.style.display = 'block';
+            } else {
+              idOverlapBtn.disabled = true;
+            }
+
+          } else {
+            alert('중복체크가 실패하였습니다');
+          }
+
+        }
+        , beforeSend:function(){
+            $('.wrap-loading').removeClass('display-none');
+        }
+        , complete:function(){
+            $('.wrap-loading').addClass('display-none');
+        }
+        , error : function(e) {
+          alert('중복체크가 실패하였습니다');
+        }
+      });
+    }
+
+    // 사업자 번호 입력 창 보이기
+    function fn_changeSelect(e) {
+      let biz = document.getElementById('bizDiv');
+
+      if(e.value == 'SELLER') {
+        biz.style.display = 'block';
+      } else {
+        biz.style.display = 'none';
+      }
+    }
+
+    // 이메일 인증번호 받기
+    function fn_emailCheck() {
+      let email = document.getElementById('email');
+      let emailNumber = document.getElementById('email-number');
+      let emailCheckDiv = document.getElementById('emailCheckDiv');
+
+      $.ajax({
+          type: "GET"
+        , url : "/api/v1/email-check/" + email.value
+        , dataType: "json"
+        , success : function(data) {
+
+           if(data.resultCode == 200) {
+            emailNumber.value = data.result;
+            emailCheckDiv.style.display = 'block';
+            fn_timer();
+           } else {
+            alert('인증이 실패했습니다');
+           }
+
+        }
+        , beforeSend:function(){
+            $('.wrap-loading').removeClass('display-none');
+        }
+        , complete:function(){
+            $('.wrap-loading').addClass('display-none');
+        }
+        , error : function(e) {
+          alert('인증이 실패했습니다');
+        }
+      });
+    }
+
+    // 이메일 인증번호 확인
+    function fn_emailNumCheck() {
+      let emailNumber = document.getElementById('email-number');
+      let emailCheck = document.getElementById('email-check');
+      let emailCheckDiv = document.getElementById('emailCheckDiv');
+      let emailCheckBtn = document.getElementById('email-check-btn');
+      let emailOverlapBtn = document.getElementById('emailOverlapBtn');
+
+      if(emailNumber.value == emailCheck.value) {
+        alert('인증이 완료되었습니다');
+        emailNumber.value = 'success';
+        emailCheckDiv.style.display = 'none';
+        emailCheckBtn.style.display = 'none';
+        emailOverlapBtn.disabled = true;
+      } else {
+        alert('인증번호가 틀렸습니다');
+        return false;
+      }
+
+    }
+
+    // 이메일 인증 타이머
+    function fn_timer() {
+      let time = 300;
+      let min = "";
+      let sec = "";
+      let timer = document.getElementById('timer');
+      let emailNumber = document.getElementById('email-number');
+
+      let x = setInterval(function() {
+        min = String(parseInt(time/60)).padStart(2, "0");
+        sec = String(time%60).padStart(2, "0");
+
+        timer.innerHTML = min + ':' + sec;
+        time--;
+
+        if(time < 0) {
+          clearInterval(x);
+          timer.innerHTML = '시간초과';
+          emailNumber.value = 'timeout';
+        } else if(emailNumber.value == 'success') {
+          clearInterval(x);
+        }
+      }, 1000);
+    }
+
+    // 회원가입
+    function fn_sendData() {
+      let id = document.getElementById('id');
+      let password = document.getElementById('password');
+      let passwordCheck = document.getElementById('passwordCheck');
+      let name = document.getElementById('name');
+      let phone = document.getElementById('phone');
+      let birth = document.getElementById('birth');
+      let sex = document.getElementById('sex');
+      let email = document.getElementById('email');
+      let zipCode = document.getElementById('zipCode');
+      let address1 = document.getElementById('address1');
+      let address2 = document.getElementById('address2');
+      let roleType = document.getElementById('roleType');
+      let bizNo = document.getElementById('bizNo');
+      let bizName = document.getElementById('bizName');
+      let emailNumber = document.getElementById('email-number');
+      let user = null;
+
+      if(fn_checkBlank(id.value)) {
+        alert('아이디를 입력해주세요');
+        id.focus();
+        return false;
+      } else if(fn_registerValidationCheck('id', id.value, 4, 20)) {
+        alert('아이디는 영문 대소문자, 숫자 4~20 자리로 입력해야합니다');
+        return false;
+      } else if(id.disabled == false) {
+        alert('아이디 중복체크를 해야합니다');
+        return false;
+      }
+
+      if(fn_checkBlank(password.value)) {
+        alert('비밀번호를 입력해주세요');
+        password.focus();
+        return false;
+      } else if(fn_registerValidationCheck('password', password.value, 8, 20)) {
+        alert('비밀번호는 영문 대소문자, 숫자, 특수문자 각각 1개이상 포함 8~20 자리로 입력해야합니다');
+        password.focus();
+        return false;
+      } else if(password.value != passwordCheck.value) {
+        alert('입력하신 비밀번호가 일치하지 않습니다');
+        passwordCheck.focus();
+        return false;
+      }
+
+      if(fn_checkBlank(name.value)) {
+        alert('이름을 입력해주세요');
+        name.focus();
+        return false;
+      }
+
+      if(fn_checkBlank(phone.value)) {
+        alert('전화번호를 입력해주세요');
+        phone.focus();
+        return false;
+      } else if(fn_registerValidationCheck('num', phone.value, 9, 12)) {
+        alert('전화번호는 "-" 제외 9~12 자리로 입력해야합니다');
+        phone.focus();
+        return false;
+      }
+
+      if(fn_checkBlank(birth.value)) {
+        alert('생년월일을 입력해주세요');
+        birth.focus();
+        return false;
+      } else if(fn_registerValidationCheck('num', birth.value, 6, 6)) {
+        alert('생년월일은 6 자리로 입력해야합니다');
+        phone.focus();
+        return false;
+      }
+
+      if(fn_checkBlank(sex.value)) {
+        alert('성별을 입력해주세요');
+        sex.focus();
+        return false;
+      }
+
+      if(fn_checkBlank(email.value)) {
+        alert('이메일을 입력해주세요');
+        email.focus();
+        return false;
+      } else if(fn_registerValidationCheck('email', email.value)) {
+        alert('이메일은 "example@naver.com" 과 같이 입력해야합니다');
+        email.focus();
+        return false;
+      }
+
+      if(fn_checkBlank(zipCode.value)) {
+        alert('우편번호를 입력해주세요');
+        zipCode.focus();
+        return false;
+      } else if(fn_checkBlank(address1.value)) {
+        alert('주소를 입력해주세요');
+        address1.focus();
+        return false;
+      } else if(fn_checkBlank(address2.value)) {
+        alert('상세주소를 입력해주세요');
+        address2.focus();
+        return false;
+      }
+
+      if(fn_checkBlank(roleType.value)) {
+        alert('이용유형을 입력해주세요');
+        roleType.focus();
+        return false;
+      }
+
+      if(emailNumber.value != 'success') {
+        alert('이메일 인증을 진행해주세요');
+        return false;
+      }
+
+      if(roleType.value == 'SELLER') {
+        if(fn_registerValidationCheck('num', bizNo.value, 10, 10)) {
+          alert('사업자번호는 "-" 제외 10 자리로 입력해야합니다');
+          bizNo.focus();
+          return false;
+        }
+
+        if(fn_checkBlank(bizName.value)) {
+          alert('상호명을 입력해주세요');
+          bizName.focus();
+          return false;
+        }
+
+      } else {
+        bizNo.value = '0';
+        bizName.value = '0';
+      }
+
+      user = {
+          "userId" : id.value
+        , "userPassWord" : password.value
+        , "userName" : name.value
+        , "userBirth" : birth.value
+        , "userSex" : sex.value
+        , "userEmail" : email.value
+        , "userPhone" : phone.value
+        , "userZipcode" : zipCode.value
+        , "userAddress1" : address1.value
+        , "userAddress2" : address2.value
+        , "userRole" : roleType.value
+        , "userBizNo" : bizNo.value
+        , "userBizName" : bizName.value
+        , "userLoginFailCnt" : 0
+        , "userPoint" : 5000
+      };
+
+      $.ajax({
+          type: "POST"
+        , url : "/api/v1/user"
+        , beforeSend: function(xhr){
+          $('.wrap-loading').removeClass('display-none');
+          xhr.setRequestHeader(header, token);
+        }
+        , contentType : "application/json"
+        , data : JSON.stringify(user)
+        , success : function(data) {
+          if(data.resultCode == 201) {
+            alert('회원가입이 완료되었습니다');
+            fn_loginHref();
+          } else {
+            alert('회원가입이 실패했습니다');
+          }
+        }
+        , complete:function(){
+            $('.wrap-loading').addClass('display-none');
+        }
+        , error : function(e) {
+          alert('회원가입이 실패했습니다');
+        }
+      });
+    }
+  </script>
+</head>
+<body>
+  <th:block th:replace="fragment/header :: headerFragment"></th:block>
+  <div class="container">
+    <div class="input-form-backgroud row">
+      <div class="input-form col-md-12 mx-auto">
+        <h4 class="mb-3">회원가입</h4>
+        <form class="validation-form" id="register-form" novalidate>
+          <div class="row">
+            <div class="mb-3">
+              <label for="id">아이디</label>
+              <div class="center">
+                <div class="inline-block col-md-9">
+                  <input type="text" class="form-control" id="id" placeholder="사용할 아이디를 입력해주세요" required>
+                </div>
+                <div class="inline-block">
+                  <button type="button" class="btn btn-warning margin-left" id="idOverlapBtn" onclick="fn_overlap('id');">중복체크</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label for="password">비밀번호</label>
+              <input type="password" class="form-control" id="password" placeholder="사용할 비밀번호를 입력해주세요" required>
+            </div>
+            <div class="col-md-6 mb-3">
+              <label for="passwordCheck">비밀번호 확인</label>
+              <input type="password" class="form-control" id="passwordCheck" placeholder="비밀번호를 다시 한 번 입력해주세요" required>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label for="name">이름</label>
+              <input type="text" class="form-control" id="name" placeholder="이름을 입력해주세요" required>
+            </div>
+            <div class="col-md-6 mb-3">
+              <label for="phone">전화번호</label>
+              <input type="email" class="form-control" id="phone" placeholder="예) 01056678994"
+                     oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');" required>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-md-4 mb-3">
+                <label for="birth">생년월일</label>
+                <input type="text" class="form-control" id="birth" placeholder="예) 980102"
+                       oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');" required>
+            </div>
+            <div class="col-md-2 mb-3">
+              <label for="sex">성별</label>
+              <select class="form-select" id="sex">
+                <option selected value="M">남</option>
+                <option value="W">여</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="mb-3">
+              <label for="id">이메일</label>
+              <div class="center">
+                <div class="inline-block col-md-7">
+                  <input type="email" class="form-control" id="email" placeholder="예) example@naver.com" required>
+                </div>
+                <div class="inline-block">
+                  <button type="button" class="btn btn-warning margin-left" id="emailOverlapBtn" onclick="fn_overlap('email');">중복체크</button>
+                </div>
+                <div class="inline-block">
+                  <button id="email-check-btn" type="button" class="btn btn-warning margin-left" onclick="fn_emailCheck();">인증번호 받기</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="row" id="emailCheckDiv">
+            <div class="mb-3">
+              <label for="email-check">인증번호</label>
+              <div class="inline-block margin-left blue-bold-text" id="timer">
+              </div>
+              <div class="center">
+                <div class="inline-block col-md-6">
+                  <input type="text" class="form-control" id="email-check" placeholder="인증번호를 입력해주세요" required>
+                  <input type="hidden" id="email-number">
+                </div>
+                <div class="inline-block">
+                  <button type="button" class="btn btn-warning margin-left" onclick="fn_emailNumCheck();">인증번호 입력</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="mb-3">
+              <label for="zipCode">주소</label>
+              <div class="center">
+                <div class="inline-block col-md-4">
+                  <input type="text" class="form-control" id="zipCode" placeholder="우편번호를 입력해주세요" required>
+                </div>
+                <div class="inline-block">
+                  <button type="button" class="btn btn-warning margin-left" onclick="fn_addressSearch();">검색</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <input type="text" class="form-control" id="address1" placeholder="주소를 입력해주세요" required>
+          </div>
+
+          <div class="mb-3">
+            <input type="text" class="form-control" id="address2" placeholder="상세 주소를 입력해주세요" required>
+          </div>
+
+          <div class="col-md-4 mb-3">
+            <label for="roleType">이용 유형</label>
+            <select class="form-select" id="roleType" onchange="fn_changeSelect(this);">
+              <option selected value="BUYER">일반구매자</option>
+              <option value="SELLER">사업구매자</option>
+            </select>
+          </div>
+
+          <div id="bizDiv">
+            <div class="col-md-4 mb-3">
+              <label for="bizNo">사업자번호</label>
+              <input type="text" class="form-control" id="bizNo" placeholder="예) 1308167823"
+                     oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');" required>
+            </div>
+
+            <div class="col-md-4 mb-3">
+              <label for="bizName">상호명</label>
+              <input type="text" class="form-control" id="bizName" placeholder="상호명을 입력해주세요" required>
+            </div>
+          </div>
+
+          <hr class="mb-4">
+
+          <div class="mb-4"></div>
+          <button class="btn btn-warning btn-lg btn-block" type="button" onclick="fn_sendData();">가입 완료</button>
+        </form>
+      </div>
+    </div>
+  </div>
+  <div class="wrap-loading display-none">
+    <div><img src="/img/loading.gif"></div>
+  </div>
+  <th:block th:replace="fragment/footer :: footerFragment"></th:block>
+</body>
+</html>

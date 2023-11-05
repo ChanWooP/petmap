@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en"
+      xmlns:th="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>로그인</title>
+  <link href="/css/bootstrap.min.css" rel="stylesheet">
+  <link href="/css/style.css" rel="stylesheet">
+  <script src="/js/bootstrap.min.js"></script>
+  <script src="/js/script.js"></script>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+  <style>
+      .bd-placeholder-img {
+        font-size: 1.125rem;
+        text-anchor: middle;
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        user-select: none;
+      }
+
+      @media (min-width: 768px) {
+        .bd-placeholder-img-lg {
+          font-size: 3.5rem;
+        }
+      }
+
+      .b-example-divider {
+        height: 3rem;
+        background-color: rgba(0, 0, 0, .1);
+        border: solid rgba(0, 0, 0, .15);
+        border-width: 1px 0;
+        box-shadow: inset 0 .5em 1.5em rgba(0, 0, 0, .1), inset 0 .125em .5em rgba(0, 0, 0, .15);
+      }
+
+      .b-example-vr {
+        flex-shrink: 0;
+        width: 1.5rem;
+        height: 100vh;
+      }
+
+      .bi {
+        vertical-align: -.125em;
+        fill: currentColor;
+      }
+
+      .nav-scroller {
+        position: relative;
+        z-index: 2;
+        height: 2.75rem;
+        overflow-y: hidden;
+      }
+
+      .nav-scroller .nav {
+        display: flex;
+        flex-wrap: nowrap;
+        padding-bottom: 1rem;
+        margin-top: -1px;
+        overflow-x: auto;
+        text-align: center;
+        white-space: nowrap;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      .exception {
+        margin-bottom : 10px;
+        color : #848484;
+        height : 50px;
+        width : 300px;
+        display: flex;
+        align-items: center;
+      }
+
+      .checkLabel {
+        margin-right : 5px;
+      }
+  </style>
+  <script>
+    $(document).ready(function(){
+        var id = document.getElementById('floatingInput');
+        var remember = document.getElementById('rememberId');
+
+        // id 쿠키가 존재하는 경우 셋팅
+        if(getCookie("id")) {
+            id.value = getCookie("id");
+            remember.checked = true;
+        }
+    });
+
+    // id 쿠키 저장
+    function setCookie(name, value, expiredays) {
+        var todayDate = new Date();
+        todayDate.setDate(todayDate.getDate() + expiredays);
+        document.cookie = name + "=" + escape(value) + "; path=/; expires=" + todayDate.toGMTString() + ";";
+    }
+
+    // id 쿠키 불러오기
+    function getCookie(name) {
+        var search = name + "=";
+        if(document.cookie.length > 0) {
+            offset = document.cookie.indexOf(search);
+            if(offset != -1) {
+                offset += search.length;
+                end = document.cookie.indexOf(";",offset);
+                if(end == -1) {
+                    end = document.cookie.length;
+                }
+                return unescape(document.cookie.substring(offset, end));
+            }
+        }
+    }
+
+    // 파라미터 가져오기
+    function getParameterByName(name) {
+        name = name.replace(/[\[]/, "\\[").replace(/[\]]/, "\\]");
+        var regex = new RegExp("[\\?&]" + name + "=([^&#]*)"),
+        results = regex.exec(location.search);
+        return results == null ? "" : decodeURIComponent(results[1].replace(/\+/g, " "));
+    }
+
+    // 로그인
+    function fn_login() {
+      let id = document.getElementById('floatingInput');
+      let pw = document.getElementById('floatingPassword');
+      let loginForm = document.getElementById('loginForm');
+      let rememberId = document.getElementById('rememberId');
+
+      if(fn_checkBlank(id.value)) {
+        alert("아이디를 입력해주세요");
+        return false;
+      } else if(fn_checkBlank(pw.value)) {
+        alert("비밀번호를 입력해주세요");
+        return false;
+      }
+
+      if(rememberId.checked == true) {
+          setCookie("id", id.value, 7);
+      } else {
+          setCookie("id", id.value, 0);
+      }
+
+      loginForm.submit();
+    }
+  </script>
+</head>
+<body class="text-center">
+  <th:block th:replace="fragment/header :: headerFragment"></th:block>
+  <main class="form-signin w-100 m-auto">
+    <form th:action="@{/auth/securitylogin}" id="loginForm" method="post">
+      <img class="mb-4" src="/img/jamong_shop.jpg" width="120" height="100">
+      <h1 class="h3 mb-3 fw-normal">로그인</h1>
+      <th:block th:if="${error}">
+        <div class="exception" th:text="${exception}"/>
+      </th:block>
+      <div class="form-floating">
+        <input type="text" class="form-control" id="floatingInput" name="username">
+        <label for="floatingInput">아이디 입력</label>
+      </div>
+      <div class="form-floating">
+        <input type="password" class="form-control" id="floatingPassword" name="password">
+        <label for="floatingPassword">비밀번호 입력</label>
+      </div>
+      <div class="checkbox mb-3">
+        <label class="checkLabel">
+          <input type="checkbox" id="remember-me" name="remember-me"> 로그인 유지
+        </label>
+        <label class="checkLabel">
+          <input type="checkbox" id="rememberId" name="rememberId"> 아이디 저장
+        </label>
+      </div>
+      <div class="checkbox mb-3">
+        <a href="/auth/register">회원가입</a>
+        <a class="margin-left" href="/auth/findId">아이디 찾기</a>
+        <a class="margin-left" href="/auth/findPw">비밀번호 찾기</a>
+      </div>
+      <button class="w-100 btn btn-lg btn-warning mb-2" type="button" onclick="fn_login();">로그인</button>
+      <a href="https://kauth.kakao.com/oauth/authorize?client_id=3698044e9a8c3cc9174ea3f803373481&redirect_uri=http://localhost:8080/oauth/kakao&response_type=code">
+        <img height="50px" width="300px"  src="/img/kakaoLogin.png">
+      </a>
+    </form>
+  </main>
+  <th:block th:replace="fragment/footer :: footerFragment"></th:block>
+</body>
+</html>

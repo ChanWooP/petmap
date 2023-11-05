@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en"
+      xmlns:th="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="_csrf" th:content="${_csrf.token}"/>
+  <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+  <title>매출관리</title>
+  <link href="/css/bootstrap.min.css" rel="stylesheet">
+  <link href="/css/style.css" rel="stylesheet">
+  <script src="/js/bootstrap.min.js"></script>
+  <script src="/js/script.js"></script>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+  <style>
+    body {
+      min-height: 100vh;
+    }
+
+    .input-form {
+      max-width: 1300px;
+
+      margin-top: 80px;
+      margin-bottom: 80px;
+      padding: 32px;
+
+      background: #fff;
+      -webkit-border-radius: 10px;
+      -moz-border-radius: 10px;
+      border-radius: 10px;
+      -webkit-box-shadow: 0 8px 20px 0 rgba(0, 0, 0, 0.15);
+      -moz-box-shadow: 0 8px 20px 0 rgba(0, 0, 0, 0.15);
+      box-shadow: 0 8px 20px 0 rgba(0, 0, 0, 0.15)
+    }
+
+    #month-div {
+      width:100%;
+      margin : 10px;
+      text-align: center;
+    }
+
+    #day-div {
+      width:100%;
+      margin : 10px;
+      text-align: center;
+    }
+
+    #item-div {
+      width:100%;
+      margin : 10px;
+      text-align: center;
+    }
+
+  </style>
+  <script th:inline="javascript">
+    var header = $("meta[name='_csrf_header']").attr("content");
+    var token = $("meta[name='_csrf']").attr("content");
+
+    $(document).ready(function(){
+      $('#frDt').val(new Date().toISOString().substring(0, 10));
+      $('#toDt').val(new Date().toISOString().substring(0, 10));
+
+      $('#btnAppr').click(function() {
+        $.ajax({
+            type: "GET"
+          , url : "/api/v1/sel/sale/" + $('#login-user-id').val() + "/" + $('#frDt').val().replace(/-/gi, "") + "/" + $('#toDt').val().replace(/-/gi, "")
+          , dataType: "json"
+          , success : function(data) {
+            if(data.resultCode == 200) {
+              if(data.result.month != null) {
+                fn_setMonth(data.result.month, 0);
+              } else {
+                str = '<img src="/img/nodata.png">';
+              }
+
+              if(data.result.day != null) {
+                fn_setDay(data.result.day, 0);
+              } else {
+                str = '<img src="/img/nodata.png">';
+              }
+
+              if(data.result.item != null) {
+                fn_setItem(data.result.item, 0);
+              } else {
+                str = '<img src="/img/nodata.png">';
+              }
+
+            } else {
+              alert('조회가 실패하였습니다');
+            }
+          }
+          , beforeSend:function(){
+              $('.wrap-loading').removeClass('display-none');
+          }
+          , complete:function(){
+              $('.wrap-loading').addClass('display-none');
+          }
+          , error : function(e) {
+            alert('조회가 실패하였습니다');
+          }
+        });
+      });
+    });
+
+    function fn_setMonth(data, pageNum) {
+      let pageShow = document.getElementById('month-div');
+      let str = '';
+
+      pageShow.innerHTML = '';
+
+      let total = data.totalElements / 30;
+      let start = Math.floor(pageNum / 30) * 30;
+      let end = total < (30 * (Math.floor(pageNum / 30)+1))? total : total - (total - (30 * (Math.floor(pageNum / 30)+1)));
+
+      str += '<div style="width:100%; margin : 0 auto;">';
+      str += '<table class="myTable">';
+      str += '  <thead>';
+      str += '    <tr>';
+      str += '      <th style="width:10%;">번호</th>';
+      str += '      <th style="width:30%;">날짜</th>';
+      str += '      <th style="width:30%;">판매수량</th>';
+      str += '      <th style="width:30%;">판매금액</th>';
+      str += '    </tr>';
+      str += '  </thead>';
+      str += '  <tbody>';
+
+      for(let i=0; i < data.content.length; i++) {
+        var saleDt = data.content[i].saleDt;
+
+        str += '<tr>';
+        str += '  <td>';
+        str += (pageNum*10)+(i+1);
+        str += '  </td>';
+        str += '  <td>';
+        str += saleDt.substr(0,4) + '-' + saleDt.substr(4,2);
+        str += '  </td>';
+        str += '  <td>';
+        str += data.content[i].saleCnt;
+        str += '  </td>';
+        str += '  <td>';
+        str += data.content[i].saleAmt;
+        str += '  </td>';
+        str += '</tr>';
+      }
+
+      str += '  </tbody>';
+      str += '</table>';
+      str += '</div>';
+
+      str += '<div class="page_wrap"> ';
+      str += '  <div class="page_nation"> ';
+      str += '    <a class="arrow pprev" onclick=\"fn_apprMonth(0);\">First</a> ';
+
+      if(pageNum-1 < 0) {
+        str += '    <a class="arrow prev" onclick=\"alert(\'처음 페이지 입니다.\');">&lt;</a> ';
+      } else {
+        str += '    <a class="arrow prev" onclick=\"fn_apprMonth(' + (pageNum-1) + ');\">&lt;</a> ';
+      }
+
+      for(var i=start; i<end; i++) {
+        if(pageNum == i) {
+          str += '<a class=\"active\" onclick=\"fn_apprMonth(' + i + ');\">' + (i+1) + '</a>';
+        } else {
+          str += '<a onclick=\"fn_apprMonth(' + i + ');\">' + (i+1) + '</a>';
+        }
+      }
+
+      if(pageNum+1 >= total) {
+        str += '    <a class="arrow next" onclick=\"alert(\'마지막 페이지 입니다.\');">&gt;</a> ';
+      } else {
+        str += '    <a class="arrow next" onclick=\"fn_apprMonth(' + (pageNum+1) + ');\">&gt;</a> ';
+      }
+
+      if(total - Math.floor(total) == 0) {
+        total -= 1;
+      }
+
+      str += '    <a class="arrow nnext" onclick=\"fn_apprMonth(' + Math.floor(total) + ');\">Last</a> ';
+      str += '  </div> ';
+      str += '</div> ';
+
+      pageShow.innerHTML = str;
+    }
+
+    function fn_setDay(data, pageNum) {
+      let pageShow = document.getElementById('day-div');
+      let str = '';
+
+      pageShow.innerHTML = '';
+
+      let total = data.totalElements / 30;
+      let start = Math.floor(pageNum / 30) * 30;
+      let end = total < (30 * (Math.floor(pageNum / 30)+1))? total : total - (total - (30 * (Math.floor(pageNum / 30)+1)));
+
+      str += '<div style="width:100%; margin : 0 auto;">';
+      str += '<table class="myTable">';
+      str += '  <thead>';
+      str += '    <tr>';
+      str += '      <th style="width:10%;">번호</th>';
+      str += '      <th style="width:30%;">날짜</th>';
+      str += '      <th style="width:30%;">판매수량</th>';
+      str += '      <th style="width:30%;">판매금액</th>';
+      str += '    </tr>';
+      str += '  </thead>';
+      str += '  <tbody>';
+
+      for(let i=0; i < data.content.length; i++) {
+        var ordDt = data.content[i].selOrderDto.ordDt;
+
+        str += '<tr>';
+        str += '  <td>';
+        str += (pageNum*10)+(i+1);
+        str += '  </td>';
+        str += '  <td>';
+        str += ordDt.substr(0,4) + '-' + ordDt.substr(4,2) + '-' + ordDt.substr(6,2)
+        str += '  </td>';
+        str += '  <td>';
+        str += data.content[i].saleCnt;
+        str += '  </td>';
+        str += '  <td>';
+        str += data.content[i].saleAmt;
+        str += '  </td>';
+        str += '</tr>';
+      }
+
+      str += '  </tbody>';
+      str += '</table>';
+      str += '</div>';
+
+      str += '<div class="page_wrap"> ';
+      str += '  <div class="page_nation"> ';
+      str += '    <a class="arrow pprev" onclick=\"fn_apprDay(0);\">First</a> ';
+
+      if(pageNum-1 < 0) {
+        str += '    <a class="arrow prev" onclick=\"alert(\'처음 페이지 입니다.\');">&lt;</a> ';
+      } else {
+        str += '    <a class="arrow prev" onclick=\"fn_apprDay(' + (pageNum-1) + ');\">&lt;</a> ';
+      }
+
+      for(var i=start; i<end; i++) {
+        if(pageNum == i) {
+          str += '<a class=\"active\" onclick=\"fn_apprDay(' + i + ');\">' + (i+1) + '</a>';
+        } else {
+          str += '<a onclick=\"fn_apprDay(' + i + ');\">' + (i+1) + '</a>';
+        }
+      }
+
+      if(pageNum+1 >= total) {
+        str += '    <a class="arrow next" onclick=\"alert(\'마지막 페이지 입니다.\');">&gt;</a> ';
+      } else {
+        str += '    <a class="arrow next" onclick=\"fn_apprDay(' + (pageNum+1) + ');\">&gt;</a> ';
+      }
+
+      if(total - Math.floor(total) == 0) {
+        total -= 1;
+      }
+
+      str += '    <a class="arrow nnext" onclick=\"fn_apprDay(' + Math.floor(total) + ');\">Last</a> ';
+      str += '  </div> ';
+      str += '</div> ';
+
+      pageShow.innerHTML = str;
+    }
+
+    function fn_setItem(data, pageNum) {
+      let pageShow = document.getElementById('item-div');
+      let str = '';
+
+      pageShow.innerHTML = '';
+
+      let total = data.totalElements / 30;
+      let start = Math.floor(pageNum / 30) * 30;
+      let end = total < (30 * (Math.floor(pageNum / 30)+1))? total : total - (total - (30 * (Math.floor(pageNum / 30)+1)));
+
+      str += '<div style="width:100%; margin : 0 auto;">';
+      str += '<table class="myTable">';
+      str += '  <thead>';
+      str += '    <tr>';
+      str += '      <th style="width:10%;">번호</th>';
+      str += '      <th style="width:20%;">상품코드</th>';
+      str += '      <th style="width:20%;">상품명</th>';
+      str += '      <th style="width:20%;">판매수량</th>';
+	  str += '      <th style="width:20%;">판매금액</th>';
+      str += '    </tr>';
+      str += '  </thead>';
+      str += '  <tbody>';
+
+      for(let i=0; i < data.content.length; i++) {
+        str += '<tr>';
+        str += '  <td>';
+        str += (pageNum*10)+(i+1);
+        str += '  </td>';
+        str += '  <td>';
+        str += data.content[i].itemId
+        str += '  </td>';
+        str += '  <td>';
+        str += data.content[i].itemName;
+        str += '  </td>';
+        str += '  <td>';
+        str += data.content[i].ordCnt;
+        str += '  </td>';
+		str += '  <td>';
+        str += data.content[i].ordAmt;
+        str += '  </td>';
+        str += '</tr>';
+      }
+
+      str += '  </tbody>';
+      str += '</table>';
+      str += '</div>';
+
+      str += '<div class="page_wrap"> ';
+      str += '  <div class="page_nation"> ';
+      str += '    <a class="arrow pprev" onclick=\"fn_apprItem(0);\">First</a> ';
+
+      if(pageNum-1 < 0) {
+        str += '    <a class="arrow prev" onclick=\"alert(\'처음 페이지 입니다.\');">&lt;</a> ';
+      } else {
+        str += '    <a class="arrow prev" onclick=\"fn_apprItem(' + (pageNum-1) + ');\">&lt;</a> ';
+      }
+
+      for(var i=start; i<end; i++) {
+        if(pageNum == i) {
+          str += '<a class=\"active\" onclick=\"fn_apprItem(' + i + ');\">' + (i+1) + '</a>';
+        } else {
+          str += '<a onclick=\"fn_apprItem(' + i + ');\">' + (i+1) + '</a>';
+        }
+      }
+
+      if(pageNum+1 >= total) {
+        str += '    <a class="arrow next" onclick=\"alert(\'마지막 페이지 입니다.\');">&gt;</a> ';
+      } else {
+        str += '    <a class="arrow next" onclick=\"fn_apprItem(' + (pageNum+1) + ');\">&gt;</a> ';
+      }
+
+      if(total - Math.floor(total) == 0) {
+        total -= 1;
+      }
+
+      str += '    <a class="arrow nnext" onclick=\"fn_apprItem(' + Math.floor(total) + ');\">Last</a> ';
+      str += '  </div> ';
+      str += '</div> ';
+
+      pageShow.innerHTML = str;
+    }
+
+    function fn_apprMonth(page) {
+      let pageNum = fn_checkBlank(page) ? 0 : page;
+
+      $.ajax({
+          type: "GET"
+        , url : "/api/v1/sel/sale/month/" + $('#login-user-id').val() + "/" + $('#frDt').val().replace(/-/gi, "") + "/" + $('#toDt').val().replace(/-/gi, "") + "/" + pageNum
+        , dataType: "json"
+        , success : function(data) {
+          if(data.resultCode == 200) {
+            fn_setMonth(data.result, page);
+          }
+        }
+        , beforeSend:function(){
+            $('.wrap-loading').removeClass('display-none');
+        }
+        , complete:function(){
+            $('.wrap-loading').addClass('display-none');
+        }
+        , error : function(e) {
+          alert('조회가 실패하였습니다');
+        }
+      });
+    }
+
+    function fn_apprDay(page) {
+      let pageNum = fn_checkBlank(page) ? 0 : page;
+
+      $.ajax({
+          type: "GET"
+        , url : "/api/v1/sel/sale/day/" + $('#login-user-id').val() + "/" + $('#frDt').val().replace(/-/gi, "") + "/" + $('#toDt').val().replace(/-/gi, "") + "/" + pageNum
+        , dataType: "json"
+        , success : function(data) {
+          if(data.resultCode == 200) {
+            fn_setDay(data.result, page);
+          }
+        }
+        , beforeSend:function(){
+            $('.wrap-loading').removeClass('display-none');
+        }
+        , complete:function(){
+            $('.wrap-loading').addClass('display-none');
+        }
+        , error : function(e) {
+          alert('조회가 실패하였습니다');
+        }
+      });
+    }
+
+    function fn_apprItem(page) {
+      let pageNum = fn_checkBlank(page) ? 0 : page;
+
+      $.ajax({
+          type: "GET"
+        , url : "/api/v1/sel/orderitem/" + $('#login-user-id').val() + "/" + $('#frDt').val().replace(/-/gi, "") + "/" + $('#toDt').val().replace(/-/gi, "") + "/" + pageNum
+        , dataType: "json"
+        , success : function(data) {
+          if(data.resultCode == 200) {
+            fn_setItem(data.result, page);
+          }
+        }
+        , beforeSend:function(){
+            $('.wrap-loading').removeClass('display-none');
+        }
+        , complete:function(){
+            $('.wrap-loading').addClass('display-none');
+        }
+        , error : function(e) {
+          alert('조회가 실패하였습니다');
+        }
+      });
+    }
+
+  </script>
+</head>
+<body>
+  <th:block th:replace="fragment/header :: headerFragment"></th:block>
+  <div class="container">
+    <div class="input-form-backgroud row">
+      <div class="input-form col-md-12 mx-auto">
+        <h4 class="mb-3">매출 관리</h4>
+        <div class="row">
+          <div class="col-md-4 mb-3">
+            <label for="frDt">시작일자</label>
+            <input type="date" class="form-control" id="frDt">
+          </div>
+          <div class="col-md-4 mb-3">
+            <label for="toDt">종료일자</label>
+            <input type="date" class="form-control" id="toDt">
+          </div>
+        </div>
+        <button type="button" class="btn btn-warning btn-select" id="btnAppr">매출 조회</button>
+        <hr class="mb-4">
+        <div style="padding:10px;">
+          <div style="margin-top:20px;">
+            <h5>월별 매출</h5>
+            <hr class="mb-4">
+          </div>
+          <div id="month-div"></div>
+
+          <div style="margin-top:20px;">
+            <h5>일별 매출</h5>
+            <hr class="mb-4">
+          </div>
+          <div id="day-div"></div>
+
+          <div style="margin-top:20px;">
+            <h5>상품별 매출</h5>
+            <hr class="mb-4">
+          </div>
+          <div id="item-div"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="wrap-loading display-none">
+    <div><img src="/img/loading.gif"></div>
+  </div>
+  <th:block th:replace="fragment/footer :: footerFragment"></th:block>
+</body>
+</html>

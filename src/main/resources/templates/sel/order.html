@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en"
+      xmlns:th="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="_csrf" th:content="${_csrf.token}"/>
+  <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+  <title>주문/배송 관리</title>
+  <link href="/css/bootstrap.min.css" rel="stylesheet">
+  <link href="/css/style.css" rel="stylesheet">
+  <script src="/js/bootstrap.min.js"></script>
+  <script src="/js/script.js"></script>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+  <style>
+    body {
+      min-height: 100vh;
+    }
+
+    .input-form {
+      max-width: 1000px;
+
+      margin-top: 80px;
+      margin-bottom: 80px;
+      padding: 32px;
+
+      background: #fff;
+      -webkit-border-radius: 10px;
+      -moz-border-radius: 10px;
+      border-radius: 10px;
+      -webkit-box-shadow: 0 8px 20px 0 rgba(0, 0, 0, 0.15);
+      -moz-box-shadow: 0 8px 20px 0 rgba(0, 0, 0, 0.15);
+      box-shadow: 0 8px 20px 0 rgba(0, 0, 0, 0.15)
+    }
+
+    .order {
+      width: 100%;
+      border : 1px solid #C7C8C9;
+      border-radius: 10px 10px 10px 10px;
+      font-size : 20px;
+      font-weight : bold;
+      padding : 10px;
+      margin-bottom : 10px;
+    }
+
+    .item {
+      width: 100%;
+      height: 100px;
+      margin: 10px;
+      font-size : 15px;
+    }
+
+    .item img {
+      width: 100px;
+      height: 100px;
+    }
+
+    .wrap-div-main{
+      position: fixed;
+      top:30%;
+      left:35%;
+    }
+
+    .div-main {
+      width: 235px;
+      height: 200px;
+      background-color: white;
+      border: 4px solid #FFC107;
+      border-radius: 5px 5px 5px 5px;
+    }
+  </style>
+  <script type="text/javascript">
+    var header = $("meta[name='_csrf_header']").attr("content");
+    var token = $("meta[name='_csrf']").attr("content");
+    var pages = 0;
+
+    $(document).ready(function(){
+      $('#frDt').val(new Date().toISOString().substring(0, 10));
+      $('#toDt').val(new Date().toISOString().substring(0, 10));
+
+      fn_appr();
+
+      $('#btnAppr').click(function() {
+        fn_appr();
+      });
+
+      $('#closeBtn').click(function() {
+        fn_close();
+      });
+
+      $('#saveBtn').click(function() {
+        fn_save();
+      });
+    });
+
+    function fn_appr(page) {
+      let pageNum = fn_checkBlank(page) ? 0 : page;
+
+      $.ajax({
+          type: "GET"
+        , url : "/api/v1/order/" + $('#login-user-id').val() + "/" + $('#frDt').val().replace(/-/gi, "") + "/" + $('#toDt').val().replace(/-/gi, "") + "/" + pageNum
+        , dataType: "json"
+        , success : function(data) {
+          if(data.resultCode == 200) {
+            let str = '';
+            let total = data.result.order.totalElements / 10;
+            let start = Math.floor(pageNum / 10) * 10;
+            let end = total < (10 * (Math.floor(pageNum / 10)+1))? total : total - (total - (10 * (Math.floor(pageNum / 10)+1)));
+
+            for(let i=0; i < data.result.order.content.length; i++) {
+              var order = 'z' + data.result.order.content[i].user + data.result.order.content[i].ordDt + data.result.order.content[i].ordId;
+              var ordDt = data.result.order.content[i].ordDt;
+
+              str += '<div class="order">';
+              str += ordDt.substr(0,4) + '-' + ordDt.substr(4,2) + '-' + ordDt.substr(6,2)
+
+              for(var j=0; j<eval('data.result.item.'+order).length; j++) {
+                str += '  <div class="item">';
+                str += '    <div class="inline-block" style="width:10%; margin:0 auto;">';
+                str += '      <img src="/files/item/'+ eval('data.result.item.'+order)[j].itemDto.selMiniImg +'">';
+                str += '    </div>';
+                str += '    <div class="inline-block" style="width:88%;">';
+                str += '<div>' + eval('data.result.item.'+order)[j].itemDto.selItemName + '</div>';
+                str += '<div style="color:#C7C8C9">' + eval('data.result.item.'+order)[j].ordCnt +'개 ㆍ '+ eval('data.result.item.'+order)[j].ordAmt +'원' + '</div>';
+                str += '    </div>';
+                str += '  </div>';
+              }
+
+              str += '<div class="orderData"';
+              str += '      data-user="'+ data.result.order.content[i].user +'"';
+              str += '      data-ordDt="'+ data.result.order.content[i].ordDt +'"';
+              str += '      data-ordId="'+ data.result.order.content[i].ordId +'"';
+              str += '      data-ordInvoice="'+ data.result.order.content[i].ordInvoice +'"';
+              str += '>';
+
+              if(data.result.order.content[i].ordStatus == 'G' && !fn_checkBlank(data.result.order.content[i].ordInvoice)) {
+                str += '배송중';
+              } else if(data.result.order.content[i].ordStatus == 'C') {
+                str += '주문취소';
+              } else if(data.result.order.content[i].ordStatus == 'W') {
+                str += '주문확인';
+              } else if(data.result.order.content[i].ordStatus == 'F') {
+                str += '구매확정';
+              } else {
+                str += '주문확정';
+              }
+              str += '</div>';
+
+              str += '  <div>';
+              if(data.result.order.content[i].ordStatus == 'W') {
+                str += '    <button type="button" class="btn btn-warning orderConfirm">주문확정</button>';
+                str += '    <button type="button" class="btn btn-warning orderCancel">주문취소</button>';
+              } else if(data.result.order.content[i].ordStatus == 'C' || data.result.order.content[i].ordStatus == 'F') {
+
+              } else {
+                str += '    <button type="button" class="btn btn-warning orderDeli">송장입력</button>';
+              }
+              str += '  </div>';
+
+              str += '</div>';
+            }
+
+            str += '<div class="page_wrap"> ';
+            str += '  <div class="page_nation"> ';
+            str += '    <a class="arrow pprev" onclick=\"fn_appr(0);\">First</a> ';
+
+            if(pageNum-1 < 0) {
+              str += '    <a class="arrow prev" onclick=\"alert(\'처음 페이지 입니다.\');">&lt;</a> ';
+            } else {
+              str += '    <a class="arrow prev" onclick=\"fn_appr(' + (pageNum-1) + ');\">&lt;</a> ';
+            }
+
+            for(var i=start; i<end; i++) {
+              if(pageNum == i) {
+                str += '<a class=\"active\" onclick=\"fn_appr(' + i + ');\">' + (i+1) + '</a>';
+              } else {
+                str += '<a onclick=\"fn_appr(' + i + ');\">' + (i+1) + '</a>';
+              }
+            }
+
+            if(pageNum+1 >= total) {
+              str += '    <a class="arrow next" onclick=\"alert(\'마지막 페이지 입니다.\');">&gt;</a> ';
+            } else {
+              str += '    <a class="arrow next" onclick=\"fn_appr(' + (pageNum+1) + ');\">&gt;</a> ';
+            }
+
+            if(total - Math.floor(total) == 0) {
+              total -= 1;
+            }
+
+            str += '    <a class="arrow nnext" onclick=\"fn_appr(' + Math.floor(total) + ');\">Last</a> ';
+            str += '  </div> ';
+            str += '</div> ';
+
+            $('#page').html(str);
+
+            pages = pageNum;
+
+            $('.orderConfirm').click(function() {
+              let selOrder = {
+                  "user" : $(this).parent().siblings('.orderData').data('user')
+                , "ordDt" : $(this).parent().siblings('.orderData').data('orddt')
+                , "ordId" : $(this).parent().siblings('.orderData').data('ordid')
+                , "ordStatus" : 'G'
+              }
+
+              $.ajax({
+                  type: "PUT"
+                , url : "/api/v1/order"
+                , beforeSend: function(xhr){
+                  $('.wrap-loading').removeClass('display-none');
+                  xhr.setRequestHeader(header, token);
+                }
+                , contentType : "application/json"
+                , data : JSON.stringify(selOrder)
+                , success : function(data) {
+                  if(data.resultCode == 204) {
+                    alert('주문이 확정되었습니다');
+                    fn_appr(pages);
+                  } else {
+                    alert('주문 확정이 실패하였습니다');
+                  }
+                }
+                , complete:function(){
+                    $('.wrap-loading').addClass('display-none');
+                }
+                , error : function(e) {
+                  alert('주문 확정이 실패하였습니다');
+                }
+              });
+            });
+
+            $('.orderCancel').click(function() {
+              let selOrder = {
+                  "user" : $(this).parent().siblings('.orderData').data('user')
+                , "ordDt" : $(this).parent().siblings('.orderData').data('orddt')
+                , "ordId" : $(this).parent().siblings('.orderData').data('ordid')
+                , "ordStatus" : 'C'
+              }
+
+              $.ajax({
+                  type: "PUT"
+                , url : "/api/v1/order"
+                , beforeSend: function(xhr){
+                  $('.wrap-loading').removeClass('display-none');
+                  xhr.setRequestHeader(header, token);
+                }
+                , contentType : "application/json"
+                , data : JSON.stringify(selOrder)
+                , success : function(data) {
+                  if(data.resultCode == 204) {
+                    alert('주문이 취소되었습니다');
+                    fn_appr(pages);
+                  } else {
+                    alert('주문 취소가 실패하였습니다');
+                  }
+                }
+                , complete:function(){
+                    $('.wrap-loading').addClass('display-none');
+                }
+                , error : function(e) {
+                  alert('주문 취소가 실패하였습니다');
+                }
+              });
+            });
+
+            $('.orderDeli').click(function() {
+              let num = $(this).parent().siblings('.orderData').data('ordinvoice');
+              let deliNum = fn_checkBlank(num) ? '' : num;
+
+              $('.wrap-div').removeClass('display-none');
+              $('#store').val($(this).parent().siblings('.orderData').data('user'));
+              $('#ordDt').val($(this).parent().siblings('.orderData').data('orddt'));
+              $('#ordId').val($(this).parent().siblings('.orderData').data('ordid'));
+              $('#orderDeliNum').val(deliNum);
+            });
+          } else {
+            if(data.divisionCode == 'G013') {
+              alert(data.resultMsg);
+            } else {
+              alert('조회가 실패하였습니다');
+            }
+          }
+        }
+        , beforeSend:function(){
+            $('.wrap-loading').removeClass('display-none');
+        }
+        , complete:function(){
+            $('.wrap-loading').addClass('display-none');
+        }
+        , error : function(e) {
+          alert('조회가 실패하였습니다');
+        }
+      });
+    }
+
+    function fn_save() {
+      let selOrder = {
+          "user" : $('#store').val()
+        , "ordDt" : $('#ordDt').val()
+        , "ordId" : $('#ordId').val()
+        , "ordInvoice" : $('#orderDeliNum').val()
+      }
+
+      $.ajax({
+          type: "PUT"
+        , url : "/api/v1/order"
+        , beforeSend: function(xhr){
+          $('.wrap-loading').removeClass('display-none');
+          xhr.setRequestHeader(header, token);
+        }
+        , contentType : "application/json"
+        , data : JSON.stringify(selOrder)
+        , success : function(data) {
+          if(data.resultCode == 204) {
+            alert('송장입력이 완료되었습니다');
+            fn_close();
+            fn_appr(pages);
+          } else {
+            alert('송장입력이 실패하였습니다');
+          }
+        }
+        , complete:function(){
+            $('.wrap-loading').addClass('display-none');
+        }
+        , error : function(e) {
+          alert('송장입력이 실패하였습니다');
+        }
+      });
+    }
+
+    function fn_close() {
+      $('.wrap-div').addClass('display-none');
+      $('#store').val('');
+      $('#ordDt').val('');
+      $('#ordId').val('');
+      $('#orderDeliNum').val('');
+    }
+  </script>
+</head>
+<body>
+  <th:block th:replace="fragment/header :: headerFragment"></th:block>
+  <div class="container">
+    <div class="input-form-backgroud row">
+      <div class="input-form col-md-12 mx-auto">
+        <h4 class="mb-3">주문/배송 관리</h4>
+        <div class="row">
+          <div class="col-md-4 mb-3">
+            <label for="frDt">시작일자</label>
+            <input type="date" class="form-control" id="frDt">
+          </div>
+          <div class="col-md-4 mb-3">
+            <label for="toDt">종료일자</label>
+            <input type="date" class="form-control" id="toDt">
+          </div>
+        </div>
+        <button type="button" class="btn btn-warning btn-select" id="btnAppr">주문/배송 조회</button>
+        <hr class="mb-4">
+        <div id="page"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="wrap-div display-none">
+    <div class="wrap-div-main">
+      <div class="div-main">
+        <h4 class="mb-3 margin-left margin-top">송장번호 입력</h4>
+        <input type="hidden" id="store">
+        <input type="hidden" id="ordDt">
+        <input type="hidden" id="ordId">
+        <div class="mb-3 margin-left margin-right">
+          <label for="orderDeliNum">번호</label>
+          <input type="text" class="form-control" id="orderDeliNum">
+        </div>
+        <div class="mb-3 margin-left margin-right">
+          <button type="button" class="btn btn-warning" id="closeBtn">닫기</button>
+          <button type="button" class="btn btn-warning" id="saveBtn">저장</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="wrap-loading display-none">
+    <div><img src="/img/loading.gif"></div>
+  </div>
+  <th:block th:replace="fragment/footer :: footerFragment"></th:block>
+</body>
+</html>

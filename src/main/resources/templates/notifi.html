@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="en"
+      xmlns:th="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="_csrf" th:content="${_csrf.token}"/>
+  <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+  <title>공지사항</title>
+  <link href="/css/bootstrap.min.css" rel="stylesheet">
+  <link href="/css/style.css" rel="stylesheet">
+  <script src="/js/bootstrap.min.js"></script>
+  <script src="/js/script.js"></script>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+  <style>
+    body {
+      min-height: 100vh;
+    }
+
+    .input-form {
+      max-width: 700px;
+
+      margin-top: 80px;
+      margin-bottom: 80px;
+      padding: 32px;
+
+      background: #fff;
+      -webkit-border-radius: 10px;
+      -moz-border-radius: 10px;
+      border-radius: 10px;
+      -webkit-box-shadow: 0 8px 20px 0 rgba(0, 0, 0, 0.15);
+      -moz-box-shadow: 0 8px 20px 0 rgba(0, 0, 0, 0.15);
+      box-shadow: 0 8px 20px 0 rgba(0, 0, 0, 0.15)
+    }
+
+    .wrap-div-main{
+      position: fixed;
+      top:12%;
+      left:30%;
+    }
+
+    .div-coupon {
+      width: 500px;
+      height: 600px;
+      background-color: white;
+      border: 4px solid #FFC107;
+      border-radius: 5px 5px 5px 5px;
+    }
+
+    .wrap-div-main2{
+      position: fixed;
+      top:5%;
+      left:35%;
+    }
+
+    .div-coupon2 {
+      width: 800px;
+      height: 700px;
+      background-color: white;
+      border: 4px solid #FFC107;
+      border-radius: 5px 5px 5px 5px;
+    }
+
+    .div-coupon2 div{
+      margin-bottom: 5px;
+    }
+
+   .mainShow{
+    overflow-x: hidden;
+    overflow-y: auto;
+    height: 80%;
+    margin-left : 10px;
+    margin-right: 10px;
+  }
+
+    .textarea {
+      border: 1px solid #CED4DA;
+      border-radius: 5px 5px 5px 5px;
+      width:410px;
+      height:100px;
+      resize:none;
+    }
+
+    .margin-left {
+      margin-left : 10px;
+    }
+
+    .div-coupon-view {
+      border-radius: 5px 5px 5px 5px;
+      background : #FFC107;
+      box-shadow : 5px 5px 5px 5px gray
+    }
+
+    .img-choice {
+      border: 3px solid #FFC107;
+    }
+
+    .img-choice2 {
+      border: 3px solid #FFC107;
+    }
+
+    .div-item {
+      width:300px;
+      height:300px;
+      border : 1px solid #C7C8C9;
+      margin-right: 5px;
+      margin-top: 5px;
+      display : inline-block;
+    }
+
+    .div-item img {
+      width:100%;
+      height:65%;
+    }
+
+    .div-item .title{
+      margin-left : 5px;
+      font-size : 15px;
+    }
+
+    .div-item .price{
+      margin-left : 5px;
+      font-weight : bold;
+      font-size : 20px;
+    }
+
+    .div-item .deil{
+      margin-left : 5px;
+      font-size : 13px;
+      color : #C7C8C9;
+    }
+    
+    .div-item .star img {
+      margin-left : 5px;
+      width:20px;
+      height:20px;
+    }
+
+    .div-item:hover {
+      border: 3px solid #FFC107;
+    }
+
+  </style>
+  <script type="text/javascript">
+    var header = $("meta[name='_csrf_header']").attr("content");
+    var token = $("meta[name='_csrf']").attr("content");
+    var pages = 0;
+
+    $(document).ready(function(){
+      fn_appr();
+
+      $('.filebox .upload-hidden').on('change', function(){
+          let filename = '';
+
+          if($(this)[0].files.length > 0){
+              // 파일명 추출
+              filename = $(this)[0].files[0].name;
+          }
+
+          $(this).siblings('.upload-name').val(filename);
+      });
+
+      $('.preview-image .upload-hidden').on('change', function(){
+          let parent = $(this).parent();
+          let reader = new FileReader();
+          parent.children('.upload-display').remove();
+
+          if($(this)[0].files.length > 0){
+              //image 파일만
+              if (!$(this)[0].files[0].type.match(/image\//)) return;
+
+              reader.onload = function(e){
+                  var src = e.target.result;
+                  parent.prepend('<div class="upload-display"><div class="upload-thumb-wrap"><img src="'+src+'" class="upload-thumb"></div></div>');
+              }
+              reader.readAsDataURL($(this)[0].files[0]);
+          }
+      });
+
+      // 추가 버튼
+      $('#btnAdd').click(function() {
+        $('.wrap-div').removeClass('display-none');
+        $('#method').val('POST');
+      });
+
+      // 닫기 버튼
+      $('#btnClose').click(function() {
+        fn_close();
+      });
+
+      // 닫기 버튼2
+      $('#btnClose2').click(function() {
+        $('.wrap-div2').addClass('display-none');
+        fn_close();
+      });
+
+      // 삭제 버튼2
+      $('#btnDelete2').click(function() {
+        let notifi = {
+          "notifiId" : $('#mainId').val()
+        };
+
+        if(confirm('삭제하시겠습니까?')) {
+          $.ajax({
+              type: "DELETE"
+            , url : "/api/v1/admin/notifi"
+            , beforeSend: function(xhr){
+              $('.wrap-loading').removeClass('display-none');
+              xhr.setRequestHeader(header, token);
+            }
+            , contentType : "application/json"
+            , data : JSON.stringify(notifi)
+            , success : function(data) {
+              if(data.resultCode == 200) {
+                alert('삭제가 완료되었습니다');
+                $('.wrap-div2').addClass('display-none');
+                fn_appr(pages);
+              } else {
+                alert('삭제가 실패하였습니다');
+              }
+            }
+            , complete:function(){
+                $('.wrap-loading').addClass('display-none');
+            }
+            , error : function(e) {
+              alert('삭제가 실패하였습니다');
+            }
+          });
+        } else {
+          return false;
+        }
+
+      });
+
+      // 수정 버튼2
+      $('#btnPut2').click(function() {
+        let $data = $(this).parent().siblings('.mainShow').children('.tempData');
+
+        $('#notifiId').val($data.data('notifiid'));
+        $('#notifiType').val($data.data('notifitype'));
+        $('#notifiTitle').val($data.data('notifititle'));
+        $('#notifiText').val($data.data('notifitext'));
+        $('#notifiStartDt').val($data.data('notifistartdt'));
+        $('#notifiEndDt').val($data.data('notifienddt'));
+        $('#name1').val($data.data('notifibannerimg'));
+        $('#name1').parent().prepend('<div class="upload-display"><div class="upload-thumb-wrap"><img src="/files/notifi/'+ $data.data('notifibannerimg') +'" class="upload-thumb"></div></div>');
+        $('#name2').val($data.data('notifimainimg'));
+        $('#name2').parent().prepend('<div class="upload-display"><div class="upload-thumb-wrap"><img src="/files/notifi/'+ $data.data('notifimainimg') +'" class="upload-thumb"></div></div>');
+
+        $('.wrap-div').removeClass('display-none');
+        $('#method').val('PUT');
+      });
+
+      // 저장 버튼
+      $('#btnSave').click(function() {
+        fn_save();
+      });
+    });
+
+    // 닫기
+    function fn_close() {
+      $('#notifiType').val('notice');
+      $('#notifiTitle').val('');
+      $('#notifiText').val('');
+      $('#notifiStartDt').val('');
+      $('#notifiEndDt').val('');
+
+      $('.upload-hidden').val('');
+      $('.upload-name').val('');
+      $('.upload-display').remove();
+
+      $('.wrap-div').addClass('display-none');
+    }
+
+    // 저장
+    function fn_save() {
+      let formData = new FormData();
+      let inputFile = $('.upload-hidden');
+
+      let notifi = {
+          "notifiId" : $('#notifiId').val()
+        , "notifiType" : $('#notifiType').val()
+        , "notifiTitle" : $('#notifiTitle').val()
+        , "notifiText" : $('#notifiText').val()
+        , "notifiStartDt" : $('#notifiStartDt').val().replace(/-/gi, "")
+        , "notifiEndDt" : $('#notifiEndDt').val().replace(/-/gi, "")
+        , "notifiBannerImg" : $('#name1').val()
+        , "notifiMainImg" : $('#name2').val()
+      }
+
+      if(fn_checkBlank($('#notifiType').val())) {
+        alert('유형을 입력해주세요');
+        $('#notifiType').focus();
+        return false;
+      }
+
+      if(fn_checkBlank($('#notifiTitle').val())) {
+        alert('제목을 입력해주세요');
+        $('#notifiTitle').focus();
+        return false;
+      }
+
+      if(fn_checkBlank($('#notifiText').val())) {
+        alert('설명을 입력해주세요');
+        $('#notifiText').focus();
+        return false;
+      }
+
+      if(fn_checkBlank($('#notifiStartDt').val())) {
+        alert('시작일자를 입력해주세요');
+        $('#notifiStartDt').focus();
+        return false;
+      }
+
+      if(fn_checkBlank($('#notifiEndDt').val())) {
+        alert('종료일자를 입력해주세요');
+        $('#notifiEndDt').focus();
+        return false;
+      }
+
+      if($('#notifiStartDt').val() > $('#notifiEndDt').val()) {
+        alert('시작일자는 종료일자보다 느릴 수 없습니다');
+        $('#notifiEndDt').focus();
+        return false;
+      }
+
+      for (var i = 0; i < inputFile.length; i++) {
+        if (inputFile[i].files.length > 0) {
+          if(i == 0) {
+            formData.append('files', inputFile[i].files[0], 'mini');
+          } else {
+            formData.append('files', inputFile[i].files[0], 'main');
+          }
+        }
+      }
+
+      formData.append('json', new Blob([ JSON.stringify(notifi) ], {type : "application/json"}));
+
+      $.ajax({
+          type: $('#method').val() == 'PUT' ? "PUT" : "POST"
+        , url : "/api/v1/admin/notifi"
+        , beforeSend: function(xhr){
+          $('.wrap-loading').removeClass('display-none');
+          xhr.setRequestHeader(header, token);
+        }
+        , contentType: false
+        , processData: false
+        , enctype : 'multipart/form-data'
+        , data : formData
+        , success : function(data) {
+          if(data.resultCode == 201 || data.resultCode == 204) {
+            alert('저장이 완료되었습니다');
+            $('.wrap-div2').addClass('display-none');
+            fn_close();
+            fn_appr();
+          } else {
+            if(data.divisionCode == 'G014') {
+             alert(data.reason);
+            } else {
+             alert('저장이 실패했습니다');
+            }
+          }
+        }
+        , complete:function(){
+            $('.wrap-loading').addClass('display-none');
+        }
+        , error : function(e) {
+          alert('저장이 실패했습니다');
+        }
+      });
+    }
+
+    function fn_appr(page) {
+        let pageShow = document.getElementById('page');
+        let str = '';
+        let pageNum = fn_checkBlank(page) ? 0 : page;
+
+        pageShow.innerHTML = '';
+
+        $.ajax({
+            type: "GET"
+          , url : "/api/v1/notifi/" + pageNum
+          , dataType: "json"
+          , success : function(data) {
+              if(data.resultCode == 200) {
+                let total = data.result.totalElements / 10;
+                let start = Math.floor(pageNum / 10) * 10;
+                let end = total < (10 * (Math.floor(pageNum / 10)+1))? total : total - (total - (10 * (Math.floor(pageNum / 10)+1)));
+
+                str += '<table class="myTable">';
+                str += '  <thead>';
+                str += '    <tr>';
+                str += '      <th style="width:100px">유형</th>';
+                str += '      <th style="width:300px">제목</th>';
+                str += '    </tr>';
+                str += '  </thead>';
+                str += '  <tbody>';
+
+                for(let i=0; i < data.result.content.length; i++) {
+                  str += '<tr>';
+
+                  if(data.result.content[i].notifiType == 'notice') {
+                    str += '  <td class="notifiType" style="width:80px;" data-notifiType="' + data.result.content[i].notifiType +'"><img style="width:35px; height:20px;" src="/img/notice.PNG"></td>';
+                  } else {
+                    str += '  <td class="notifiType" style="width:80px;" data-notifiType="' + data.result.content[i].notifiType +'"><img style="width:35px; height:20px;" src="/img/event.PNG"></td>';
+                  }
+
+                  str += '  <td class="data" style="text-align:left; width:80px;"';
+                  str += '  data-notifiId="' + data.result.content[i].notifiId +'"';
+                  str += '  data-notifiTitle="' + data.result.content[i].notifiTitle +'"';
+                  str += '  data-notifiType="' + data.result.content[i].notifiType +'"';
+                  str += '  data-notifiText="' + data.result.content[i].notifiText +'"';
+                  str += '  data-notifiStartDt="' + data.result.content[i].notifiStartDt +'"';
+                  str += '  data-notifiEndDt="' + data.result.content[i].notifiEndDt +'"';
+                  str += '  data-notifiBannerImg="' + data.result.content[i].notifiBannerImg +'"';
+                  str += '  data-notifiMainImg="' + data.result.content[i].notifiMainImg +'"';
+                  str += ' > '+ data.result.content[i].notifiTitle +'</td>';
+                  str += '</tr>';
+                }
+
+                str += '  </tbody>';
+                str += '</table>';
+
+                str += '<div class="page_wrap"> ';
+                str += '  <div class="page_nation"> ';
+                str += '    <a class="arrow pprev" onclick=\"fn_appr(0);\">First</a> ';
+
+                if(pageNum-1 < 0) {
+                  str += '    <a class="arrow prev" onclick=\"alert(\'처음 페이지 입니다.\');">&lt;</a> ';
+                } else {
+                  str += '    <a class="arrow prev" onclick=\"fn_appr(' + (pageNum-1) + ');\">&lt;</a> ';
+                }
+
+                for(var i=start; i<end; i++) {
+                  if(pageNum == i) {
+                    str += '<a class=\"active\" onclick=\"fn_appr(' + i + ');\">' + (i+1) + '</a>';
+                  } else {
+                    str += '<a onclick=\"fn_appr(' + i + ');\">' + (i+1) + '</a>';
+                  }
+                }
+
+                if(pageNum+1 > total) {
+                  str += '    <a class="arrow next" onclick=\"alert(\'마지막 페이지 입니다.\');">&gt;</a> ';
+                } else {
+                  str += '    <a class="arrow next" onclick=\"fn_appr(' + (pageNum+1) + ');\">&gt;</a> ';
+                }
+
+                str += '    <a class="arrow nnext" onclick=\"fn_appr(' + Math.floor(total) + ');\">Last</a> ';
+                str += '  </div> ';
+                str += '</div> ';
+
+                pageShow.innerHTML = str;
+
+                pages = pageNum;
+              }
+
+              // 행 선택
+              $('.myTable').children('tbody').children('tr').click(function() {
+                  let str = '';
+                  let stDt = $(this).children('.data').data('notifistartdt').toString();
+                  let enDt = $(this).children('.data').data('notifienddt').toString();
+
+                  str += '<h4 class="mb-3">' + $(this).children('.data').data('notifititle') + '</h4>'
+                  str += '기간 : ' + stDt.substr(0,4) + '-' + stDt.substr(4,2) + '-' + stDt.substr(6,2) + ' ~ ' + enDt.substr(0,4) + '-' + enDt.substr(4,2) + '-' + enDt.substr(6,2);
+                  $('.mainInfo').html(str)
+
+                  str = '<img src="/files/notifi/' + $(this).children('.data').data('notifimainimg') + '">';
+                  str += '<div class="tempData"';
+                  str += ' data-notifiid = "' + $(this).children('.data').data('notifiid') + '"';
+                  str += ' data-notifitype = "' + $(this).children('.data').data('notifitype') + '"';
+                  str += ' data-notifititle = "' + $(this).children('.data').data('notifititle') + '"';
+                  str += ' data-notifitext = "' + $(this).children('.data').data('notifitext') + '"';
+                  str += ' data-notifistartdt = "' + stDt.substr(0,4) + '-' + stDt.substr(4,2) + '-' + stDt.substr(6,2) + '"';
+                  str += ' data-notifienddt = "' + enDt.substr(0,4) + '-' + enDt.substr(4,2) + '-' + enDt.substr(6,2) + '"';
+                  str += ' data-notifibannerimg = "' + $(this).children('.data').data('notifibannerimg') + '"';
+                  str += ' data-notifimainimg = "' + $(this).children('.data').data('notifimainimg') + '"';
+                  str += '>' + $(this).children('.data').data('notifitext') + '</div>';
+                  $('.mainShow').html(str);
+
+                  $('#mainId').val($(this).children('.data').data('notifiid'));
+
+                  $('.wrap-div2').removeClass('display-none');
+              });
+          }
+          , beforeSend:function(){
+              $('.wrap-loading').removeClass('display-none');
+          }
+          , complete:function(){
+              $('.wrap-loading').addClass('display-none');
+          }
+          , error : function(e) {
+            alert('조회가 실패하였습니다');
+          }
+        });
+    };
+  </script>
+</head>
+<body>
+  <th:block th:replace="fragment/header :: headerFragment"></th:block>
+  <div class="container">
+    <div class="input-form-backgroud row">
+      <div class="input-form col-md-12 mx-auto">
+        <h4 class="mb-3">공지사항</h4>
+        <th:block sec:authorize="hasRole('ROLE_ADMIN')">
+          <button type="button" class="btn btn-warning btn-select" id="btnAdd">추가</button>
+        </th:block>
+        <hr class="mb-4">
+        <div id="page"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="wrap-div2 display-none">
+    <div class="wrap-div-main2">
+      <div class="div-coupon2">
+        <div class="mainInfo margin-left margin-top" style="height:10%;">
+        </div>
+        <div class="mainShow">
+        </div>
+        <input type="hidden" id="mainId">
+        <div class="col-md-5 mb-3 margin-left" style="height:10%;">
+          <button type="button" class="btn btn-warning" id="btnClose2">닫기</button>
+          <th:block sec:authorize="hasRole('ROLE_ADMIN')">
+            <button type="button" class="btn btn-warning" id="btnPut2">수정</button>
+            <button type="button" class="btn btn-warning" id="btnDelete2">삭제</button>
+          </th:block>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="wrap-div display-none">
+    <div class="wrap-div-main">
+      <div class="div-coupon">
+        <input type="hidden" id="method">
+        <input type="hidden" id="notifiId">
+        <h4 class="mb-3 margin-left margin-top">공지사항 추가 및 수정</h4>
+
+        <div class="row">
+          <div class="col-md-5 mb-3 margin-left">
+            <label for="notifiType">유형</label>
+            <select class="form-select" id="notifiType">
+              <option value="notice" selected>알림</option>
+              <option value="event" >이벤트</option>
+            </select>
+          </div>
+          <div class="col-md-5 mb-3">
+            <label for="notifiTitle">제목</label>
+            <input type="text" class="form-control" id="notifiTitle">
+          </div>
+        </div>
+
+        <div class="mb-3 margin-left margin-right">
+          <label>배너 이미지</label>
+          <div class="filebox bs3-primary preview-image">
+            <input class="upload-name" id="name1" value="파일선택" disabled="disabled" style="width: 200px;">
+            <label for="input_file1">이미지 업로드</label>
+            <input type="file" id="input_file1" class="upload-hidden">
+          </div>
+        </div>
+
+        <div class="mb-3 margin-left margin-right">
+          <label>메인 이미지</label>
+          <div class="filebox bs3-primary preview-image">
+            <input class="upload-name" id="name2" value="파일선택" disabled="disabled" style="width: 200px;">
+            <label for="input_file2">이미지 업로드</label>
+            <input type="file" id="input_file2" class="upload-hidden">
+          </div>
+        </div>
+
+        <div class="col-md-6 mb-3 margin-left">
+          <label for="notifiText">설명</label>
+          <textarea id="notifiText" class="textarea"></textarea>
+        </div>
+
+        <div class="row">
+          <div class="col-md-4 mb-3 margin-left">
+            <label for="notifiStartDt">시작일자</label>
+            <input type="date" class="form-control" id="notifiStartDt">
+          </div>
+          <div class="col-md-4 mb-3">
+            <label for="notifiEndDt">종료일자</label>
+            <input type="date" class="form-control" id="notifiEndDt">
+          </div>
+        </div>
+
+        <div class="col-md-5 mb-3 margin-left">
+          <button type="button" class="btn btn-warning" id="btnClose">닫기</button>
+          <button type="button" class="btn btn-warning" id="btnSave">저장</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="wrap-loading display-none">
+    <div><img src="/img/loading.gif"></div>
+  </div>
+  <th:block th:replace="fragment/footer :: footerFragment"></th:block>
+</body>
+</html>

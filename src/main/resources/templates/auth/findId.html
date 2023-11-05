@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en"
+      xmlns:th="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="_csrf" th:content="${_csrf.token}"/>
+  <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+  <title>아이디 찾기</title>
+  <link href="/css/bootstrap.min.css" rel="stylesheet">
+  <link href="/css/style.css" rel="stylesheet">
+  <script src="/js/bootstrap.min.js"></script>
+  <script src="/js/script.js"></script>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+  <style>
+    body {
+      min-height: 100vh;
+    }
+
+    .input-form {
+      max-width: 680px;
+
+      margin-top: 80px;
+      margin-bottom: 80px;
+      padding: 32px;
+
+      background: #fff;
+      -webkit-border-radius: 10px;
+      -moz-border-radius: 10px;
+      border-radius: 10px;
+      -webkit-box-shadow: 0 8px 20px 0 rgba(0, 0, 0, 0.15);
+      -moz-box-shadow: 0 8px 20px 0 rgba(0, 0, 0, 0.15);
+      box-shadow: 0 8px 20px 0 rgba(0, 0, 0, 0.15)
+    }
+
+    .center {
+      display: flex;
+      align-items: center;
+    }
+
+    #email-check-btn, #emailCheckDiv {
+      display : none;
+    }
+  </style>
+  <script>
+    var header = $("meta[name='_csrf_header']").attr("content");
+    var token = $("meta[name='_csrf']").attr("content");
+
+    // 이메일 확인
+    function fn_checkEmail() {
+      let email = document.getElementById('email');
+      let emailCheckBtn = document.getElementById('email-check-btn');
+
+      if(fn_checkBlank(email.value)) {
+        alert('이메일을 입력해주세요');
+        email.focus();
+        return false;
+      } else if(fn_registerValidationCheck('email', email.value)) {
+        alert('이메일은 "example@naver.com" 과 같이 입력해야합니다');
+        email.focus();
+        return false;
+      }
+
+      $.ajax({
+          type: "GET"
+        , url : "/api/v1/user/check/email/" + email.value
+        , dataType: "json"
+        , success : function(data) {
+
+          if(data.resultCode == 200) {
+            if(data.result) {
+              email.disabled = true;
+              emailCheckBtn.style.display = 'block';
+            } else {
+              alert('등록이 되지 않은 이메일 입니다');
+            }
+          } else {
+            alert('이메일 확인이 실패하였습니다');
+          }
+        }
+        , beforeSend:function(){
+            $('.wrap-loading').removeClass('display-none');
+        }
+        , complete:function(){
+            $('.wrap-loading').addClass('display-none');
+        }
+        , error : function(e) {
+          alert('이메일 확인이 실패하였습니다');
+        }
+      });
+    }
+
+    // 이메일 인증번호 받기
+    function fn_emailCheck() {
+      let email = document.getElementById('email');
+      let emailNumber = document.getElementById('email-number');
+
+      $.ajax({
+          type: "GET"
+        , url : "/api/v1/email-check/" + email.value
+        , dataType: "json"
+        , success : function(data) {
+           if(data.resultCode == 200) {
+            emailNumber.value = data.result;
+            emailCheckDiv.style.display = 'block';
+            fn_timer();
+           } else {
+            alert('인증이 실패했습니다');
+           }
+        }
+        , beforeSend:function(){
+            $('.wrap-loading').removeClass('display-none');
+        }
+        , complete:function(){
+            $('.wrap-loading').addClass('display-none');
+        }
+        , error : function(e) {
+          alert('인증이 실패했습니다');
+        }
+      });
+    }
+
+    // 이메일 인증번호 확인
+    function fn_emailNumCheck() {
+      let div = document.getElementById('div');
+      let emailNumber = document.getElementById('email-number');
+      let emailCheck = document.getElementById('email-check');
+      let rtnHTML = '';
+
+      if(emailNumber.value == emailCheck.value) {
+        emailNumber.value = 'success';
+        alert('인증이 완료되었습니다');
+
+        $.ajax({
+            type: "GET"
+          , url : "/api/v1/user/email/" + email.value
+          , dataType: "json"
+          , success : function(data) {
+             if(data.resultCode == 200) {
+              if(data.result.oauthType == 'PETMAP') {
+                rtnHTML = '아이디는 ' + data.result.userId + ' 입니다';
+              } else {
+                rtnHTML = '카카오 인증 로그인 입니다';
+              }
+
+              div.innerHTML = rtnHTML;
+             } else {
+              alert('인증이 실패했습니다');
+             }
+          }
+          , beforeSend:function(){
+              $('.wrap-loading').removeClass('display-none');
+          }
+          , complete:function(){
+              $('.wrap-loading').addClass('display-none');
+          }
+          , error : function(e) {
+            alert('인증이 실패했습니다');
+          }
+        });
+      } else {
+        alert('인증번호가 틀렸습니다');
+        return false;
+      }
+    }
+
+    // 이메일 인증 타이머
+    function fn_timer() {
+      let time = 300;
+      let min = "";
+      let sec = "";
+      let timer = document.getElementById('timer');
+      let emailNumber = document.getElementById('email-number');
+
+      let x = setInterval(function() {
+        min = String(parseInt(time/60)).padStart(2, "0");
+        sec = String(time%60).padStart(2, "0");
+
+        timer.innerHTML = min + ':' + sec;
+        time--;
+
+        if(time < 0) {
+          clearInterval(x);
+          timer.innerHTML = '시간초과';
+          emailNumber.value = 'timeout';
+        } else if(emailNumber.value == 'success') {
+          clearInterval(x);
+        }
+      }, 1000);
+    }
+  </script>
+</head>
+<body>
+  <th:block th:replace="fragment/header :: headerFragment"></th:block>
+  <div class="container">
+    <div class="input-form-backgroud row">
+      <div class="input-form col-md-12 mx-auto">
+        <h4 class="mb-3">아이디 찾기</h4>
+        <div id="div">
+          <div class="row">
+            <div class="mb-3">
+              <label for="email">가입 시 입력한 이메일</label>
+              <div class="center">
+                <div class="inline-block col-md-7">
+                  <input type="email" class="form-control" id="email" placeholder="예) example@naver.com" required>
+                </div>
+                <div class="inline-block">
+                  <button type="button" class="btn btn-warning margin-left" onclick="fn_checkEmail();">이메일 확인</button>
+                </div>
+                <div class="inline-block">
+                  <button id="email-check-btn" type="button" class="btn btn-warning margin-left" onclick="fn_emailCheck();">인증번호 받기</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="row" id="emailCheckDiv">
+            <div class="mb-3">
+              <label for="email-check">인증번호</label>
+              <div class="inline-block margin-left blue-bold-text" id="timer">
+              </div>
+              <div class="center">
+                <div class="inline-block col-md-6">
+                  <input type="text" class="form-control" id="email-check" placeholder="인증번호를 입력해주세요" required>
+                  <input type="hidden" id="email-number">
+                </div>
+                <div class="inline-block">
+                  <button type="button" class="btn btn-warning margin-left" onclick="fn_emailNumCheck();">인증번호 입력</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="wrap-loading display-none">
+    <div><img src="/img/loading.gif"></div>
+  </div>
+  <th:block th:replace="fragment/footer :: footerFragment"></th:block>
+</body>
+</html>
