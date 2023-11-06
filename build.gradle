@@ -123,6 +123,8 @@ test {
 	useJUnitPlatform()
 }
 
-jar{
-	enabled=false
+jar {
+	manifest {
+		attributes 'Main-Class': 'com.cwpark.petmap.petmap.PetmapApplication'
+	}
 }
