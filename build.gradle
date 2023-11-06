@@ -116,6 +116,6 @@ clean {
 	delete file(querydslSrcDir)
 }
 
-tasks.named('test') {
+test {
 	useJUnitPlatform()
 }
