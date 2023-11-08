@@ -29,7 +29,12 @@ public class KakaoLoginService {
     MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
     body.add("grant_type", "authorization_code");
     body.add("client_id", "3698044e9a8c3cc9174ea3f803373481");
-    body.add("redirect_uri", "http://localhost:8080/oauth/kakao");
+    // 개발
+    //body.add("redirect_uri", "http://localhost:8080/oauth/kakao");
+
+    // 운영
+    body.add("redirect_uri", "http://ec2-16-16-19-205.eu-north-1.compute.amazonaws.com:8080/oauth/kakao");
+
     body.add("code", code);
 
     HttpEntity<MultiValueMap<String, String>> requestEntity = new HttpEntity<>(body, headers);
