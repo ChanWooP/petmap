@@ -21,7 +21,7 @@ script: "./gradlew clean build"
 before_deploy:
   - zip -r petmap *
   - mkdir -p deploy
-  - mv petmap.zip deploy
+  - mv petmap.zip deploy/petmap.zip
 
 deploy:
   - provider: s3
@@ -36,8 +36,8 @@ deploy:
 
   - provider: codedeploy
     access_key_id: $AWS_ACCESS_KEY # Travis repo settings에 설정된 값
-    secret_access_key: $AWS_SECRET_KEY # Travis repo settings에 설정된 값
-    bucket: freelec-springboot-build-cwpark2 # S3 버킷
+    secret_access_key: $AWS_SECRET_KEY #Travis repo settings에 설정된 값
+    bucket: freelec-springboot-build-cwpark2
     key: petmap.zip # 빌드 파일을 압축해서 전달
     bundle_type: zip
     application: freelec-springboot2-webservice # 웹 콘솔에서 등록한 CodeDeploy 어플리케이션2
