@@ -34,6 +34,7 @@ deploy:
     local_dir: deploy # before_deploy에서 생성한 디렉토리
     wait-until-deployed: true
 
+  # Version 2 of the Ruby SDK will enter maintenance~ 오류가 날 경우 EC2->인스턴스->태그 오타 확인하기
   - provider: codedeploy
     access_key_id: $AWS_ACCESS_KEY # Travis repo settings에 설정된 값
     secret_access_key: $AWS_SECRET_KEY #Travis repo settings에 설정된 값
