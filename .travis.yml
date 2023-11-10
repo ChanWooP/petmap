@@ -34,12 +34,12 @@ deploy:
     local_dir: deploy # before_deploy에서 생성한 디렉토리
     wait-until-deployed: true
 
-  # Version 2 of the Ruby SDK will enter maintenance~ 오류가 날 경우 EC2->인스턴스->태그 오타 확인하기
+  # EC2 인스턴스의 태그와 codedeploy 태그가 같은지 확인
   - provider: codedeploy
     access_key_id: $AWS_ACCESS_KEY # Travis repo settings에 설정된 값
     secret_access_key: $AWS_SECRET_KEY #Travis repo settings에 설정된 값
     bucket: freelec-springboot-build-cwpark2 #S3 버킷
-    key: petmap.zip #빌드 파일을 압축해서 전달
+    key: freelec-springboot2-webservice.zip #빌드 파일을 압축해서 전달
     bundle_type: zip #압축확장자
     application: freelec-springboot2-webservice #웹 콘솔에서 등록한 CodeDeploy 애플리케이션
     deployment_group: freelec-springboot2-webservice-group #웹 콘솔에서 등록한 CodeDeploy 배포 그룹
