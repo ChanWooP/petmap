@@ -19,9 +19,9 @@ cache:
 script: "./gradlew clean build"
 
 before_deploy:
-  - zip -r freelec-springboor2-webservice *
+  - zip -r petmap *
   - mkdir -p delpoy
-  - mv freelec-springboor2-webservice.zip deploy/freelec-springboor2-webservice.zip
+  - mv petmap.zip deploy/petmap.zip
 
 deploy:
   - provider: s3
