@@ -6,6 +6,10 @@ branches:
   only:
     - master
 
+#모든 권한 허용
+before_install:
+  - chmod +x gradlew
+
 #travis CI 서버 Home
 cache:
   directories:
