@@ -21,7 +21,8 @@ script: "./gradlew clean build"
 before_deploy:
   - zip -r petmap *
   - mkdir -p delpoy
-  - mv petmap.zip /deploy/petmap.zip
+  - ll
+  - mv petmap.zip deploy/petmap.zip
 
 deploy:
   - provider: s3
