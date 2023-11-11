@@ -23,7 +23,6 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.TransactionStatus;
 
-import javax.jws.soap.SOAPBinding;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
