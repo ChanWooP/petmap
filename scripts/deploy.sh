@@ -6,6 +6,7 @@ PROJECT_NAME=petmap
 echo "> Build 파일 복사"
 
 cp $REPOSITORY/zip/*.jar $REPOSITORY/
+rm -rf $REPOSITORY/*plain.jar
 
 echo "> 현재 구동중인 애플리케이션 pid 확인"
 
@@ -23,7 +24,6 @@ fi
 
 echo "> 새 어플리케이션 배포"
 
-rm -rf *plain.jar
 JAR_NAME=$(ls -tr $REPOSITORY/*.jar | tail -n 1)
 
 echo "> JAR Name: $JAR_NAME"
