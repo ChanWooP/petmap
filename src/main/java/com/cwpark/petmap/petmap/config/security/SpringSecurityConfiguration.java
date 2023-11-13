@@ -58,7 +58,7 @@ public class SpringSecurityConfiguration extends WebSecurityConfigurerAdapter {
         .authorizeRequests()
         .antMatchers("/",
                 "/files/notifi/**", "/files/category/**", "/files/item/**",
-                "/search", "/notifi", "/buy",
+                "/search", "/notifi", "/buy", "/profile",
                 "/api/v1/item/**", "/api/v1/index", "/api/v1/notifi/**", "/api/v1/category/**", "/api/v1/buy/**", "/api/v1/useritemqna/list/**",
                 "/api/v1/user/check/id/**","/api/v1/user/check/email/**", "/api/v1/user/email/**", "/api/v1/user/id/**",
                 "/css/**", "/js/**", "/img/**", "/auth/**",
