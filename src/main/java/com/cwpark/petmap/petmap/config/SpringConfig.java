@@ -9,6 +9,8 @@ public class SpringConfig implements WebMvcConfigurer {
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
         registry.addResourceHandler( "/files/**") // 경로 설정
-                .addResourceLocations("file:///C:/uploadFile/"); // 실제 경로(window 버전)
+                //.addResourceLocations("file:///C:/uploadFile/"); // 실제 경로(window 버전)
+                .addResourceLocations("file:///home/ec2-user/app/step3/"); // 실제 경로(리눅스 버전)
+
     }
 }
